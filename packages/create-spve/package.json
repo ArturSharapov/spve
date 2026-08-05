@@ -1,0 +1,34 @@
+{
+  "name": "create-spve",
+  "version": "0.1.0",
+  "description": "Create a framework-agnostic SPVE SharePoint application",
+  "keywords": [
+    "sharepoint",
+    "spfx",
+    "spve",
+    "vite",
+    "vite-plus"
+  ],
+  "license": "MIT",
+  "bin": {
+    "create-spve": "./bin/index.mjs"
+  },
+  "files": [
+    "bin",
+    "templates"
+  ],
+  "type": "module",
+  "publishConfig": {
+    "access": "public"
+  },
+  "scripts": {
+    "test": "vp test",
+    "release:dry": "vp pm publish --dry-run --access public --no-git-checks"
+  },
+  "dependencies": {
+    "@clack/prompts": "^1.7.0"
+  },
+  "engines": {
+    "node": ">=22.12"
+  }
+}

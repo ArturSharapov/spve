@@ -1,0 +1,32 @@
+{
+  "name": "spve-playground",
+  "version": "0.0.0",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "dev": "vp dev",
+    "build": "vp build",
+    "check": "vp check"
+  },
+  "dependencies": {
+    "@azure/msal-browser": "^2.38.2",
+    "@pnp/sp": "^3.26.0",
+    "spve": "workspace:*",
+    "vue": "^3.5.41"
+  },
+  "devDependencies": {
+    "@types/node": "^24.13.3",
+    "@vitejs/plugin-vue": "^6.0.8",
+    "@vue/tsconfig": "^0.9.1",
+    "typescript": "~6.0.2",
+    "vite": "npm:@voidzero-dev/vite-plus-core@0.2.8",
+    "vite-plus": "^0.2.8",
+    "vue-tsc": "^3.3.9"
+  },
+  "overrides": {
+    "vite": "npm:@voidzero-dev/vite-plus-core@0.2.8"
+  },
+  "engines": {
+    "node": ">=22.12"
+  }
+}

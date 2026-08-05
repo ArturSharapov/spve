@@ -1,0 +1,29 @@
+{
+  "name": "spve-webpart",
+  "version": "0.1.0",
+  "private": true,
+  "dependencies": {
+    "@microsoft/sp-component-base": "1.22.2",
+    "@microsoft/sp-core-library": "1.22.2",
+    "@microsoft/sp-lodash-subset": "1.22.2",
+    "@microsoft/sp-office-ui-fabric-core": "1.22.2",
+    "@microsoft/sp-property-pane": "1.22.2",
+    "@microsoft/sp-webpart-base": "1.22.2",
+    "@pnp/sp": "^3.26.0",
+    "tslib": "2.3.1"
+  },
+  "devDependencies": {
+    "@microsoft/sp-module-interfaces": "1.22.2",
+    "@microsoft/spfx-heft-plugins": "1.22.2",
+    "@microsoft/spfx-web-build-rig": "1.22.2",
+    "@rushstack/eslint-config": "4.5.2",
+    "@rushstack/heft": "1.1.2",
+    "@types/heft-jest": "1.0.2",
+    "@types/webpack-env": "~1.15.2",
+    "css-loader": "~7.1.2",
+    "typescript": "~5.8.0"
+  },
+  "engines": {
+    "node": ">=22.14.0 <23.0.0"
+  }
+}

@@ -1,0 +1,63 @@
+{
+  "name": "spve",
+  "version": "0.1.0",
+  "description": "Vite integration for framework-agnostic SharePoint web parts",
+  "keywords": [
+    "sharepoint",
+    "spfx",
+    "vite",
+    "vite-plus"
+  ],
+  "license": "MIT",
+  "files": [
+    "README.md",
+    "*.d.ts",
+    "*.mjs",
+    "template"
+  ],
+  "type": "module",
+  "main": "./index.mjs",
+  "types": "./bridge.d.ts",
+  "exports": {
+    ".": {
+      "types": "./bridge.d.ts",
+      "import": "./index.mjs"
+    },
+    "./client": {
+      "types": "./client.d.ts"
+    },
+    "./vite": {
+      "types": "./vite.d.ts",
+      "import": "./vite.mjs"
+    },
+    "./internal/runtime": {
+      "types": "./runtime.d.ts",
+      "import": "./runtime.mjs"
+    },
+    "./internal/msal": {
+      "types": "./msal.d.ts",
+      "import": "./msal.mjs"
+    }
+  },
+  "publishConfig": {
+    "access": "public"
+  },
+  "scripts": {
+    "release:dry": "vp pm publish --dry-run --access public --no-git-checks"
+  },
+  "dependencies": {
+    "picocolors": "^1.1.1"
+  },
+  "devDependencies": {
+    "vite": "catalog:",
+    "vite-plus": "catalog:"
+  },
+  "peerDependencies": {
+    "@azure/msal-browser": "^2.38.2",
+    "@pnp/sp": "^3.26.0",
+    "vite-plus": "^0.2.8"
+  },
+  "engines": {
+    "node": ">=22.12"
+  }
+}
