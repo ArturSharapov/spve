@@ -263,7 +263,7 @@ importers:
         specifier: ^3.3.9
         version: 3.3.9(typescript@6.0.3)
 
-  packages/create-spve:
+  packages/create-sp:
     dependencies:
       '@clack/prompts':
         specifier: ^1.7.0

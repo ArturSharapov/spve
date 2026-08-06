@@ -12,5 +12,5 @@
     "strict": true
   },
   "include": ["vite.config.ts", "packages/**/*.d.ts"],
-  "exclude": ["packages/create-spve/templates", "packages/spve/template"]
+  "exclude": ["packages/create-sp/templates", "packages/spve/template"]
 }

@@ -6,7 +6,7 @@ import { onMounted } from 'vue'
 const props = defineProps(spveProps)
 onMounted(async () => {
   const docs = await sp.web.lists.getByTitle('Documents').items.getPaged()
-  console.log({docs})
+  console.log({ docs })
 })
 
 const title = `SPVE Playground`

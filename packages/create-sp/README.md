@@ -1,15 +1,15 @@
-# create-spve
+# create-sp
 
 Create a framework-agnostic SPVE SharePoint application with Vite+.
 
 ```sh
-vp create spve
+npm cr sp
 ```
 
 For a non-interactive Vue project:
 
 ```sh
-vp create spve --no-interactive -- my-app --template vue-ts \
+npm cr sp -- my-app --no-interactive --template vue-ts \
   --title "My web part" --description "My SharePoint application" \
   --site-url https://contoso.sharepoint.com/sites/example
 ```

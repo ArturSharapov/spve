@@ -20,7 +20,7 @@ const frameworks = {
 }
 
 test('generates every bundled framework starter', () => {
-  const temporaryRoot = mkdtempSync(path.join(tmpdir(), 'create-spve-'))
+  const temporaryRoot = mkdtempSync(path.join(tmpdir(), 'create-sp-'))
 
   try {
     for (const [framework, entry] of Object.entries(frameworks)) {

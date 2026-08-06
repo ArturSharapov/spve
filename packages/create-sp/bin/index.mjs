@@ -71,7 +71,7 @@ function parseArgs(argv) {
 }
 
 function printHelp() {
-  console.log(`Usage: create-spve [directory] [options]
+  console.log(`Usage: create-sp [directory] [options]
 
 Options:
   -t, --template <name>       vanilla, vue, react, preact, lit, svelte, solid, or qwik
@@ -91,8 +91,8 @@ Options:
   -h, --help                  Show this help
 
 Examples:
-  vp create spve
-  vp create spve -- my-app --template vue-ts --title "My web part"`)
+  npm cr sp
+  npm cr sp -- my-app --template vue-ts --title "My web part"`)
 }
 
 function isValidPackageName(value) {
@@ -203,6 +203,11 @@ function gradientText(text, start, end, bold = true) {
       return colorText(letter, color, bold)
     })
     .join('')
+}
+
+function clearNpmCreatePrelude() {
+  if (!process.stdout.isTTY || process.env.npm_command !== 'init') return
+  process.stdout.write('\x1b[3A\x1b[J')
 }
 
 function renderHeader() {
@@ -1002,6 +1007,7 @@ async function main() {
   }
 
   if (args.interactive) {
+    clearNpmCreatePrelude()
     renderHeader()
   }
   const options = await resolveOptions(args)
@@ -1023,6 +1029,10 @@ async function main() {
   if (options.install) {
     if (args.interactive) {
       const spinner = prompts.spinner()
+      if (process.stdout.isTTY) {
+        process.stdout.write('\n'.repeat(3))
+        process.stdout.write('\x1b[3A')
+      }
       spinner.start('Installing dependencies')
       try {
         await installDependencies(options.target)
