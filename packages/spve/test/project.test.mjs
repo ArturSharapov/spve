@@ -116,7 +116,7 @@ test('generates typed properties and only rewrites changed generated files', () 
   try {
     prepareWebpart(root, config)
 
-    const client = path.join(root, '.spve/client.d.ts')
+    const client = path.join(root, '.spve/types.d.ts')
     const source = path.join(root, '.spve/webpart/src/webparts/spve/SpveWebPart.ts')
     const manifestFile = path.join(
       root,

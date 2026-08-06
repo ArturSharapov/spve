@@ -1,2 +1,2 @@
 /// <reference types="vite/client" />
-/// <reference types="spve/client" />
+/// <reference types="spve" />

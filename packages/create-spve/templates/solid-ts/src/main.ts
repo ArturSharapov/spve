@@ -1,6 +1,4 @@
-import type { SpveModule } from 'spve'
-import type { AppProps } from 'spve/client'
-import { initializeSP } from 'spve/internal/runtime'
+import { initializeSP, type AppProps, type SpveModule } from 'spve'
 import { createComponent } from 'solid-js'
 import { createStore, reconcile } from 'solid-js/store'
 import { render } from 'solid-js/web'

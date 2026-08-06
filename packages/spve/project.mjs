@@ -425,7 +425,7 @@ function generatedClientTypes(properties) {
         `    ${JSON.stringify(name)}${property.required ? '' : '?'}: ${propertyTsType(name, property)}`,
     )
     .join('\n')
-  return `import 'spve/client'\n\ndeclare module 'spve/client' {\n  interface AppProps {\n${members}\n  }\n}\n`
+  return `export {}\n\ndeclare global {\n  interface SpveAppProps {\n${members}\n  }\n}\n`
 }
 
 function generatedFiles(config) {
@@ -528,7 +528,7 @@ function generatedFiles(config) {
   return {
     files: new Map([
       ...[...files].map(([relative, contents]) => [`webpart/${relative}`, contents]),
-      ['client.d.ts', generatedClientTypes(normalized.webpart.properties)],
+      ['types.d.ts', generatedClientTypes(normalized.webpart.properties)],
     ]),
     normalized,
   }

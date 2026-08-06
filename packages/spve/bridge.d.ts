@@ -1,7 +1,21 @@
-import type { AppProps as DefaultAppProps, Services as DefaultServices } from 'spve/client'
+import type { SPFI } from '@pnp/sp'
 
-export type SpveProps = Record<string, unknown>
-export type SpveServices = Record<string, unknown>
+export * from './config.js'
+
+declare global {
+  interface SpveAppProps {}
+
+  interface ImportMetaEnv {
+    readonly VITE_AAD_CLIENT_ID?: string
+    readonly VITE_AAD_TENANT_ID?: string
+  }
+}
+
+export interface AppProps extends SpveAppProps {}
+
+export interface Services {
+  sp: SPFI
+}
 
 export interface SpveContext<Props extends object, Services extends object> {
   element: HTMLElement
@@ -15,8 +29,14 @@ export interface SpveInstance<Props extends object> {
 }
 
 export interface SpveModule<
-  Props extends object = DefaultAppProps,
-  Services extends object = DefaultServices,
+  Props extends object = AppProps,
+  ModuleServices extends object = Services,
 > {
-  mount(context: SpveContext<Props, Services>): SpveInstance<Props>
+  mount(context: SpveContext<Props, ModuleServices>): SpveInstance<Props>
+}
+
+export function initializeSP(sharepoint: SPFI): void
+
+declare module 'sp' {
+  export const sp: SPFI
 }

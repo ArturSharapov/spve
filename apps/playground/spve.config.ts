@@ -1,4 +1,4 @@
-import type { SpveConfig } from 'spve/config'
+import type { SpveConfig } from 'spve'
 
 export default {
   name: 'spve-playground',

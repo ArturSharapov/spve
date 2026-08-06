@@ -429,7 +429,7 @@ async function resolveOptions(args) {
       siteUrl: args.siteUrl,
       tenantId: args.tenantId,
       clientId: args.clientId,
-      spve: args.spve ?? '^0.0.1',
+      spve: args.spve ?? 'npm:@spve/core@^0.0.1',
       install: args.install ?? false,
     }
   }
@@ -672,7 +672,7 @@ async function resolveOptions(args) {
     siteUrl: draft.siteUrl,
     tenantId: draft.configureEntra ? draft.tenantId : undefined,
     clientId: draft.configureEntra ? draft.clientId : undefined,
-    spve: args.spve ?? '^0.0.1',
+    spve: args.spve ?? 'npm:@spve/core@^0.0.1',
     install: draft.install,
   }
 }
@@ -861,7 +861,7 @@ function writeSpveConfig(directory, options) {
   const component = randomUUID()
   const solution = randomUUID()
   const feature = randomUUID()
-  const contents = `import type { SpveConfig } from 'spve/config'
+  const contents = `import type { SpveConfig } from 'spve'
 
 export default {
   name: ${quoteTypeScript(options.name)},
@@ -902,9 +902,9 @@ export default {
 `
   writeFileSync(path.join(directory, 'spve.config.ts'), contents)
 
-  const generatedTypes = `import 'spve/client'\n\ndeclare module 'spve/client' {\n  interface AppProps {\n    "description"?: string\n  }\n}\n`
+  const generatedTypes = `export {}\n\ndeclare global {\n  interface SpveAppProps {\n    "description"?: string\n  }\n}\n`
   mkdirSync(path.join(directory, '.spve'), { recursive: true })
-  writeFileSync(path.join(directory, '.spve/client.d.ts'), generatedTypes)
+  writeFileSync(path.join(directory, '.spve/types.d.ts'), generatedTypes)
 }
 
 function writeEnvironment(directory, options) {

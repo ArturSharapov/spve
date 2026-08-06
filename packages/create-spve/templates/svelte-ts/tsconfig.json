@@ -4,12 +4,12 @@
     "tsBuildInfoFile": "./node_modules/.tmp/tsconfig.tsbuildinfo",
     "target": "es2023",
     "module": "esnext",
-    "types": ["svelte", "vite/client", "spve/client"],
+    "types": ["svelte", "vite/client", "spve"],
     "allowArbitraryExtensions": true,
     "noEmit": true,
     "allowJs": true,
     "checkJs": true,
     "moduleDetection": "force"
   },
-  "include": ["src/**/*.ts", "src/**/*.js", "src/**/*.svelte", ".spve/client.d.ts"]
+  "include": ["src/**/*.ts", "src/**/*.js", "src/**/*.svelte", ".spve/types.d.ts"]
 }

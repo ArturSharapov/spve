@@ -1,5 +1,5 @@
 import { $, component$, useOnWindow, useStore } from '@builder.io/qwik'
-import type { AppProps } from 'spve/client'
+import type { AppProps } from 'spve'
 
 interface BridgeProps {
   eventName: string

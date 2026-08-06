@@ -12,7 +12,7 @@
   "dependencies": {
     "@azure/msal-browser": "^2.38.2",
     "@pnp/sp": "^3.26.0",
-    "spve": "workspace:*",
+    "spve": "workspace:@spve/core@*",
     "vue": "^3.5.41"
   },
   "devDependencies": {

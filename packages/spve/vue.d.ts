@@ -1,4 +1,4 @@
-import type { AppProps } from 'spve/client'
+import 'spve'
 
 type VueProp<T, TRequired extends boolean> = {
   type: { (): T }
@@ -6,9 +6,9 @@ type VueProp<T, TRequired extends boolean> = {
 }
 
 declare const properties: {
-  readonly [K in keyof AppProps]-?: {} extends Pick<AppProps, K>
-    ? VueProp<Exclude<AppProps[K], undefined>, false>
-    : VueProp<AppProps[K], true>
+  readonly [K in keyof SpveAppProps]-?: {} extends Pick<SpveAppProps, K>
+    ? VueProp<Exclude<SpveAppProps[K], undefined>, false>
+    : VueProp<SpveAppProps[K], true>
 }
 
 export default properties

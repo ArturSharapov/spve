@@ -1,5 +1,4 @@
-import type { SpveModule } from 'spve'
-import { initializeSP } from 'spve/internal/runtime'
+import { initializeSP, type SpveModule } from 'spve'
 import { createApp, h, reactive } from 'vue'
 import App from './App.vue'
 import './style.css'

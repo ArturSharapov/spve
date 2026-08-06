@@ -42,7 +42,7 @@ origin.
 Declare properties in the typed `spve.config.ts`:
 
 ```ts
-import type { SpveConfig } from 'spve/config'
+import type { SpveConfig } from 'spve'
 
 export default {
   name: 'my-app',
@@ -102,13 +102,13 @@ export default {
 } satisfies SpveConfig
 ```
 
-SPVE generates `.spve/client.d.ts`, the SPFx manifest defaults, and the matching property-pane
-controls. Application code imports `AppProps` from `spve/client`; option values become literal
+SPVE generates `.spve/types.d.ts`, the SPFx manifest defaults, and the matching property-pane
+controls. Application code imports `AppProps` from `spve`; option values become literal
 unions, required properties are non-optional, and `Services` already contains the typed shared
 `SPFI` instance:
 
 ```ts
-import type { AppProps, Services } from 'spve/client'
+import type { AppProps, Services } from 'spve'
 ```
 
 No application-owned `AppProps` or `Services` declaration is needed. Supported property types are

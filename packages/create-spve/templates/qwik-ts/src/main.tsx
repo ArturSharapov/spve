@@ -1,6 +1,5 @@
 import '@builder.io/qwik/qwikloader.js'
-import type { SpveModule } from 'spve'
-import { initializeSP } from 'spve/internal/runtime'
+import { initializeSP, type SpveModule } from 'spve'
 import { render } from '@builder.io/qwik'
 import { App } from './App'
 import './style.css'

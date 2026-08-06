@@ -13,6 +13,7 @@ import {
 import { loadSpveConfig, normalizeConfig } from './project.mjs'
 
 const publicSharePoint = fileURLToPath(new URL('./sp.mjs', import.meta.url))
+const privateMsal = fileURLToPath(new URL('./msal.mjs', import.meta.url))
 const virtualStandalone = 'virtual:spve-standalone'
 const resolvedVirtualStandalone = `\0${virtualStandalone}`
 const virtualSharePoint = '/__spve-sharepoint'
@@ -227,7 +228,7 @@ function spvePlugin() {
       if (id === resolvedVirtualStandalone) {
         return `
           import app from ${JSON.stringify(applicationEntry)}
-          import { createMsalSP } from 'spve/internal/msal'
+          import { createMsalSP } from ${JSON.stringify(privateMsal)}
           app.mount({
             element: document.querySelector('#spve-local'),
             props: ${JSON.stringify(applicationProps)},

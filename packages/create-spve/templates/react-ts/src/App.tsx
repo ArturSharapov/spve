@@ -1,4 +1,4 @@
-import type { AppProps } from 'spve/client'
+import type { AppProps } from 'spve'
 
 const title = __TITLE_JS__
 

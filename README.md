@@ -4,9 +4,9 @@ Framework-agnostic SharePoint development powered by Vite+.
 
 ## Workspace
 
-- `packages/spve` — published as `spve`; the Vite plugin, runtime, and hidden SPFx workspace template.
+- `packages/spve` — published as `@spve/core` and installed under the `spve` alias; the Vite plugin, runtime, and hidden SPFx workspace template.
 - `packages/create-spve` — published as `create-spve`; the `vp create spve` wizard and framework starters.
-- `apps/playground` — private Vue consumer linked to the local `spve` package with `workspace:*`.
+- `apps/playground` — private Vue consumer linked to `@spve/core` under the local `spve` alias.
 
 ## Development
 
@@ -29,7 +29,7 @@ Inside this monorepo, the generator is registered as a local Vite+ template:
 vp create spve
 ```
 
-The two packages are versioned and published independently. Always publish `spve` before
+The two packages are versioned and published independently. Always publish `@spve/core` before
 `create-spve`, because newly generated projects depend on the runtime package.
 
 Preview both npm artifacts without publishing:

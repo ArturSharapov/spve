@@ -1,5 +1,4 @@
-import type { SpveModule } from 'spve'
-import { initializeSP } from 'spve/internal/runtime'
+import { initializeSP, type SpveModule } from 'spve'
 import { createElement } from 'react'
 import { createRoot } from 'react-dom/client'
 import { App } from './App'

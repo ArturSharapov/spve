@@ -1,1 +1,1 @@
-export {}
+export { initializeSP } from './runtime.mjs'

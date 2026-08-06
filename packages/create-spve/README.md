@@ -17,7 +17,7 @@ vp create spve --no-interactive -- my-app --template vue-ts \
 The wizard includes SPVE-integrated TypeScript versions of every template bundled with Create Vite:
 Vanilla, Vue, React, Preact, Lit, Svelte, Solid, and Qwik.
 
-For local development before `spve` is published:
+For local development before `@spve/core` is published:
 
 ```sh
 node bin/index.mjs \

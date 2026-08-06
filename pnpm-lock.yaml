@@ -232,7 +232,7 @@ importers:
         specifier: ^3.26.0
         version: 3.26.0
       spve:
-        specifier: workspace:*
+        specifier: workspace:@spve/core@*
         version: link:../../packages/spve
       vue:
         specifier: ^3.5.41

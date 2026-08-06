@@ -1,5 +1,4 @@
-import type { SpveModule } from 'spve'
-import { initializeSP } from 'spve/internal/runtime'
+import { initializeSP, type SpveModule } from 'spve'
 import { mount, unmount } from 'svelte'
 import { writable } from 'svelte/store'
 import App from './App.svelte'

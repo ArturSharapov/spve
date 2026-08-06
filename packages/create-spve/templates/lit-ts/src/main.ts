@@ -1,5 +1,4 @@
-import type { SpveModule } from 'spve'
-import { initializeSP } from 'spve/internal/runtime'
+import { initializeSP, type SpveModule } from 'spve'
 import { nothing, render } from 'lit'
 import { App } from './App'
 import './style.css'
