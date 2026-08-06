@@ -6,7 +6,8 @@
   "scripts": {
     "dev": "vp dev",
     "build": "vp build",
-    "check": "vp check"
+    "check": "vp check",
+    "postinstall": "spve prepare"
   },
   "dependencies": {
     "@azure/msal-browser": "^2.38.2",
@@ -26,7 +27,14 @@
   "overrides": {
     "vite": "npm:@voidzero-dev/vite-plus-core@0.2.8"
   },
+  "devEngines": {
+    "runtime": {
+      "name": "node",
+      "version": "24",
+      "onFail": "download"
+    }
+  },
   "engines": {
-    "node": ">=22.12"
+    "node": ">=24 <25"
   }
 }

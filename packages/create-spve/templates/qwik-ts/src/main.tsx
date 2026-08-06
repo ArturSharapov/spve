@@ -1,16 +1,11 @@
 import '@builder.io/qwik/qwikloader.js'
-import type { SPFI } from '@pnp/sp'
 import type { SpveModule } from 'spve'
 import { initializeSP } from 'spve/internal/runtime'
 import { render } from '@builder.io/qwik'
-import { App, type AppProps } from './App'
+import { App } from './App'
 import './style.css'
 
-interface Services {
-  sp: SPFI
-}
-
-const application: SpveModule<AppProps, Services> = {
+const application: SpveModule = {
   mount({ element, props, services }) {
     initializeSP(services.sp)
     const eventName = `spve:${crypto.randomUUID()}`

@@ -9,6 +9,9 @@
     "vite-plus"
   ],
   "license": "MIT",
+  "bin": {
+    "spve": "./cli.mjs"
+  },
   "files": [
     "README.md",
     "*.d.ts",
@@ -26,9 +29,16 @@
     "./client": {
       "types": "./client.d.ts"
     },
+    "./config": {
+      "types": "./config.d.ts"
+    },
     "./vite": {
       "types": "./vite.d.ts",
       "import": "./vite.mjs"
+    },
+    "./vue": {
+      "types": "./vue.d.ts",
+      "import": "./vue.mjs"
     },
     "./internal/runtime": {
       "types": "./runtime.d.ts",
@@ -46,6 +56,7 @@
     "release:dry": "vp pm publish --dry-run --access public --no-git-checks"
   },
   "dependencies": {
+    "@clack/prompts": "^1.7.0",
     "picocolors": "^1.1.1"
   },
   "devDependencies": {

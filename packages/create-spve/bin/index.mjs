@@ -411,6 +411,9 @@ async function resolveOptions(args) {
     if (!args.siteUrl) throw new Error('A --site-url is required in non-interactive mode')
     const urlError = validateUrl(args.siteUrl)
     if (urlError) throw new Error(urlError)
+    if ((args.tenantId === undefined) !== (args.clientId === undefined)) {
+      throw new Error('Use --tenant-id and --client-id together')
+    }
 
     return {
       target,
@@ -719,6 +722,19 @@ function quoteJavaScript(value) {
   return `\`${escaped}\``
 }
 
+function quoteTypeScript(value) {
+  const singles = value.split("'").length - 1
+  const doubles = value.split('"').length - 1
+  const quote = singles > doubles ? '"' : "'"
+  return `${quote}${value
+    .replaceAll('\\', '\\\\')
+    .replaceAll(quote, `\\${quote}`)
+    .replaceAll('\r', '\\r')
+    .replaceAll('\n', '\\n')
+    .replaceAll('\u2028', '\\u2028')
+    .replaceAll('\u2029', '\\u2029')}${quote}`
+}
+
 function frameworkDependencies(template) {
   if (template === 'vue-ts') {
     return {
@@ -804,6 +820,7 @@ function writePackageJson(directory, options) {
       dev: 'vp dev',
       build: 'vp build',
       check: 'vp check',
+      postinstall: 'spve prepare',
     },
     dependencies: sortKeys({
       '@azure/msal-browser': '^2.38.2',
@@ -821,45 +838,81 @@ function writePackageJson(directory, options) {
     overrides: {
       vite: 'npm:@voidzero-dev/vite-plus-core@0.2.8',
     },
+    devEngines: {
+      packageManager: {
+        name: 'pnpm',
+        version: '11.20.0',
+        onFail: 'download',
+      },
+      runtime: {
+        name: 'node',
+        version: '24',
+        onFail: 'download',
+      },
+    },
     engines: {
-      node: '>=22.12',
+      node: '>=24 <25',
     },
   }
   writeFileSync(path.join(directory, 'package.json'), `${JSON.stringify(packageJson, null, 2)}\n`)
 }
 
 function writeSpveConfig(directory, options) {
-  const config = {
-    name: options.name,
-    title: options.title,
-    description: options.description,
-    version: options.version,
-    ids: {
-      component: randomUUID(),
-      solution: randomUUID(),
-      feature: randomUUID(),
+  const component = randomUUID()
+  const solution = randomUUID()
+  const feature = randomUUID()
+  const contents = `import type { SpveConfig } from 'spve/config'
+
+export default {
+  name: ${quoteTypeScript(options.name)},
+  title: ${quoteTypeScript(options.title)},
+  description: ${quoteTypeScript(options.description)},
+  version: ${quoteTypeScript(options.version)},
+  ids: {
+    component: '${component}',
+    solution: '${solution}',
+    feature: '${feature}',
+  },
+  dev: {
+    siteUrl: ${quoteTypeScript(options.siteUrl)},
+    vitePort: ${options.vitePort},
+    spfxPort: ${options.spfxPort},
+  },
+  webpart: {
+    icon: 'Page',
+    group: 'Advanced',
+    supportedHosts: ['SharePointWebPart'],
+    properties: {
+      description: {
+        type: 'string',
+        label: 'Description',
+        default: ${quoteTypeScript(options.description)},
+        control: {
+          type: 'text',
+          multiline: true,
+        },
+      },
     },
-    dev: {
-      vitePort: options.vitePort,
-      spfxPort: options.spfxPort,
-    },
-  }
-  writeFileSync(path.join(directory, 'spve.config.json'), `${JSON.stringify(config, null, 2)}\n`)
+  },
+  solution: {
+    skipFeatureDeployment: true,
+    permissions: [],
+  },
+} satisfies SpveConfig
+`
+  writeFileSync(path.join(directory, 'spve.config.ts'), contents)
+
+  const generatedTypes = `import 'spve/client'\n\ndeclare module 'spve/client' {\n  interface AppProps {\n    "description"?: string\n  }\n}\n`
+  mkdirSync(path.join(directory, '.spve'), { recursive: true })
+  writeFileSync(path.join(directory, '.spve/client.d.ts'), generatedTypes)
 }
 
 function writeEnvironment(directory, options) {
-  if (
-    options.siteUrl === undefined &&
-    options.tenantId === undefined &&
-    options.clientId === undefined
-  ) {
-    return
-  }
+  if (options.clientId === undefined && options.tenantId === undefined) return
 
   const environment = [
     `VITE_AAD_CLIENT_ID=${options.clientId ?? ''}`,
     `VITE_AAD_TENANT_ID=${options.tenantId ?? ''}`,
-    `VITE_SP_SITE_URL=${options.siteUrl ?? ''}`,
     '',
   ].join('\n')
   writeFileSync(path.join(directory, '.env.local'), environment)

@@ -7,6 +7,7 @@ import { fileURLToPath } from 'node:url'
 import { test } from 'vite-plus/test'
 
 const generator = fileURLToPath(new URL('../bin/index.mjs', import.meta.url))
+const projectModule = new URL('../../spve/project.mjs', import.meta.url).href
 const frameworks = {
   vanilla: 'src/main.ts',
   vue: 'src/App.vue',
@@ -24,6 +25,7 @@ test('generates every bundled framework starter', () => {
   try {
     for (const [framework, entry] of Object.entries(frameworks)) {
       const target = path.join(temporaryRoot, framework)
+      const withEntra = framework === 'vanilla'
       const result = spawnSync(
         process.execPath,
         [
@@ -37,11 +39,12 @@ test('generates every bundled framework starter', () => {
           '--slug',
           `${framework}-test`,
           '--description',
-          `${framework} generator test`,
+          `${framework}'s generator test`,
           '--site-url',
           'https://contoso.sharepoint.com/sites/example',
           '--spve',
           'workspace:*',
+          ...(withEntra ? ['--tenant-id', 'tenant-id', '--client-id', 'client-id'] : []),
           '--no-install',
         ],
         { encoding: 'utf8' },
@@ -52,8 +55,46 @@ test('generates every bundled framework starter', () => {
         JSON.parse(readFileSync(path.join(target, 'package.json'))).dependencies.spve,
         'workspace:*',
       )
+      const packageJson = JSON.parse(readFileSync(path.join(target, 'package.json')))
+      assert.equal(packageJson.scripts.postinstall, 'spve prepare')
+      assert.equal(packageJson.devEngines.packageManager.name, 'pnpm')
+      assert.equal(packageJson.devEngines.runtime.version, '24')
+      assert.equal(packageJson.devEngines.runtime.onFail, 'download')
       assert.doesNotThrow(() => readFileSync(path.join(target, entry)))
-      assert.doesNotThrow(() => readFileSync(path.join(target, 'spve.config.json')))
+      if (framework === 'vue') {
+        assert.match(readFileSync(path.join(target, 'src/App.vue'), 'utf8'), /from 'spve\/vue'/)
+      }
+      const loadedConfig = spawnSync(
+        process.execPath,
+        [
+          '--input-type=module',
+          '--eval',
+          `import { loadSpveConfig } from ${JSON.stringify(projectModule)}; console.log(JSON.stringify(await loadSpveConfig(process.cwd())))`,
+        ],
+        { cwd: target, encoding: 'utf8' },
+      )
+      assert.equal(loadedConfig.status, 0, loadedConfig.stderr || loadedConfig.stdout)
+      const spveConfig = JSON.parse(loadedConfig.stdout)
+      assert.equal(spveConfig.webpart.properties.description.type, 'string')
+      assert.equal(spveConfig.description, `${framework}'s generator test`)
+      const configSource = readFileSync(path.join(target, 'spve.config.ts'), 'utf8')
+      assert.match(configSource, /description: ".+"/)
+      assert.ok(configSource.indexOf('\n  ids:') < configSource.indexOf('\n  dev:'))
+      assert.ok(configSource.indexOf('\n  dev:') < configSource.indexOf('\n  webpart:'))
+      assert.equal(spveConfig.dev.siteUrl, 'https://contoso.sharepoint.com/sites/example')
+      assert.equal(existsSync(path.join(target, '.env.example')), false)
+      assert.equal(existsSync(path.join(target, '.env.local')), withEntra)
+      if (withEntra) {
+        assert.equal(
+          readFileSync(path.join(target, '.env.local'), 'utf8'),
+          'VITE_AAD_CLIENT_ID=client-id\nVITE_AAD_TENANT_ID=tenant-id\n',
+        )
+      }
+      assert.equal(existsSync(path.join(target, 'spve.config.json')), false)
+      assert.match(
+        readFileSync(path.join(target, '.spve/client.d.ts'), 'utf8'),
+        /interface AppProps/,
+      )
       assert.equal(existsSync(path.join(target, 'tsconfig.json')), true)
       assert.equal(existsSync(path.join(target, 'tsconfig.node.json')), true)
       assert.equal(existsSync(path.join(target, 'tsconfig.app.json')), false)

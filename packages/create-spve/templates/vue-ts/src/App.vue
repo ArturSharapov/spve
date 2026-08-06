@@ -1,7 +1,7 @@
 <script setup lang="ts">
-defineProps<{
-  description?: string
-}>()
+import spveProps from 'spve/vue'
+
+defineProps(spveProps)
 
 const title = __TITLE_JS__
 </script>

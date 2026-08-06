@@ -1,19 +1,10 @@
-import type { SPFI } from '@pnp/sp'
 import type { SpveModule } from 'spve'
 import { initializeSP } from 'spve/internal/runtime'
 import { createApp, h, reactive } from 'vue'
 import App from './App.vue'
 import './style.css'
 
-interface AppProps extends Record<string, unknown> {
-  description?: string
-}
-
-interface Services {
-  sp: SPFI
-}
-
-const application: SpveModule<AppProps, Services> = {
+const application: SpveModule = {
   mount({ element, props, services }) {
     initializeSP(services.sp)
     const state = reactive({ ...props })
@@ -22,7 +13,7 @@ const application: SpveModule<AppProps, Services> = {
 
     return {
       setProps(next) {
-        for (const key of Object.keys(state)) {
+        for (const key of Object.keys(state) as (keyof typeof state)[]) {
           if (!(key in next)) delete state[key]
         }
         Object.assign(state, next)

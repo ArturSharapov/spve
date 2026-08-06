@@ -2,17 +2,11 @@ import { PublicClientApplication } from '@azure/msal-browser'
 import { SPBrowser, spfi } from '@pnp/sp'
 import '@pnp/sp/presets/all'
 
-export async function createMsalSP() {
-  const {
-    VITE_AAD_CLIENT_ID: clientId,
-    VITE_AAD_TENANT_ID: tenantId,
-    VITE_SP_SITE_URL: siteUrl,
-  } = import.meta.env
+export async function createMsalSP(siteUrl) {
+  const { VITE_AAD_CLIENT_ID: clientId, VITE_AAD_TENANT_ID: tenantId } = import.meta.env
 
-  if (!clientId || !tenantId || !siteUrl) {
-    throw new Error(
-      'Set VITE_AAD_CLIENT_ID, VITE_AAD_TENANT_ID, and VITE_SP_SITE_URL in .env.local',
-    )
+  if (!clientId || !tenantId) {
+    throw new Error('Set VITE_AAD_CLIENT_ID and VITE_AAD_TENANT_ID in .env.local')
   }
 
   const msal = new PublicClientApplication({

@@ -1,6 +1,4 @@
-export interface AppProps extends Record<string, unknown> {
-  description?: string
-}
+import type { AppProps } from 'spve/client'
 
 const title = __TITLE_JS__
 

@@ -1,6 +1,6 @@
 <script lang="ts">
   import type { Readable } from 'svelte/store'
-  import type { AppProps } from './types'
+  import type { AppProps } from 'spve/client'
 
   let { properties }: { properties: Readable<AppProps> } = $props()
   const title = __TITLE_JS__

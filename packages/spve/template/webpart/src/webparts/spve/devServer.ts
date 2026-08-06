@@ -1,8 +1,8 @@
-import spve from '../../../../../spve.config.json'
+import spve from '../../../config/spve.json'
 import type { SPFI } from '@pnp/sp'
 import type { SpveModule } from 'spve'
 
-const developmentServerUrl = `https://localhost:${spve.dev.spfxPort}/__spve`
+const developmentServerUrl = `https://localhost:${spve.spfxPort}/__spve`
 type Props = Record<string, unknown>
 type Services = { sp: SPFI }
 type Module = SpveModule<Props, Services>

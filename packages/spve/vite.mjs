@@ -1,4 +1,4 @@
-import { existsSync, readFileSync } from 'node:fs'
+import { existsSync } from 'node:fs'
 import { createRequire } from 'node:module'
 import { fileURLToPath } from 'node:url'
 import path from 'node:path'
@@ -10,12 +10,21 @@ import {
   startWebpart,
   stopWebpart,
 } from './spfx.mjs'
+import { loadSpveConfig, normalizeConfig } from './project.mjs'
 
 const publicSharePoint = fileURLToPath(new URL('./sp.mjs', import.meta.url))
 const virtualStandalone = 'virtual:spve-standalone'
 const resolvedVirtualStandalone = `\0${virtualStandalone}`
 const virtualSharePoint = '/__spve-sharepoint'
 const resolvedVirtualSharePoint = '\0virtual:spve-sharepoint'
+const virtualVueProperties = 'spve/vue'
+const resolvedVirtualVueProperties = '\0virtual:spve-vue-properties'
+
+function conciseError(message) {
+  const error = new Error(message)
+  error.stack = `Error: ${message}`
+  return error
+}
 
 const projectDefaults = {
   fmt: {
@@ -37,9 +46,13 @@ const projectDefaults = {
 function spvePlugin() {
   let spMode = false
   let webpart
-  let createHeftLogger
+  let heftLogger
   let sharePointOrigin
+  let sharePointSiteUrl
   let applicationEntry = '/src/main.ts'
+  let applicationProps = {}
+  let vueProperties = {}
+  let projectConfigFile
   let packageWebpartOnClose = false
 
   return {
@@ -48,7 +61,19 @@ function spvePlugin() {
 
     async config(config, environment) {
       const root = path.resolve(config.root ?? process.cwd())
-      const settings = JSON.parse(readFileSync(path.join(root, 'spve.config.json'), 'utf8'))
+      projectConfigFile = path.join(root, 'spve.config.ts')
+      const settings = await loadSpveConfig(root)
+      if (!settings.dev?.siteUrl) {
+        throw conciseError(
+          [
+            'SPVE: SharePoint site URL is not configured.',
+            '',
+            'Add it to spve.config.ts:',
+            "  dev: { siteUrl: 'https://contoso.sharepoint.com/sites/example', ... }",
+          ].join('\n'),
+        )
+      }
+      const normalized = normalizeConfig(settings)
       const entry = ['src/main.ts', 'src/main.tsx', 'src/main.js', 'src/main.jsx'].find(
         (candidate) => existsSync(path.join(root, candidate)),
       )
@@ -57,17 +82,29 @@ function spvePlugin() {
       applicationEntry = `/${entry}`
       spMode = environment.mode === 'sp'
       const vitePlus = createRequire(path.join(root, 'package.json'))('vite-plus')
-      const { loadEnv } = vitePlus
-      createHeftLogger = vitePlus.createLogger
-      const siteUrl = loadEnv(environment.mode, root, '').VITE_SP_SITE_URL
-      sharePointOrigin = siteUrl ? new URL(siteUrl).origin : undefined
-      if (spMode && environment.command === 'serve' && !siteUrl) {
-        throw new Error('SPVE: VITE_SP_SITE_URL is required for `vp dev -m sp`')
-      }
-      if (spMode) webpart = prepareWebpart(root, settings, siteUrl)
+      heftLogger = vitePlus.createLogger(config.logLevel, {
+        prefix: '[heft]',
+        allowClearScreen: false,
+      })
+      sharePointSiteUrl = normalized.dev.siteUrl
+      sharePointOrigin = new URL(sharePointSiteUrl).origin
+      applicationProps = Object.fromEntries(
+        Object.entries(normalized.webpart.properties)
+          .filter(([, property]) => property.default !== undefined)
+          .map(([name, property]) => [name, property.default]),
+      )
+      vueProperties = Object.fromEntries(
+        Object.entries(normalized.webpart.properties).map(([name, property]) => [
+          name,
+          { type: null, required: Boolean(property.required) },
+        ]),
+      )
+      webpart = prepareWebpart(root, settings)
       const spDevelopment = spMode && environment.command === 'serve'
       packageWebpartOnClose = spMode && environment.command === 'build'
-      const https = spDevelopment ? await ensureDevCertificate(webpart) : undefined
+      const https = spDevelopment
+        ? await ensureDevCertificate(webpart, undefined, heftLogger)
+        : undefined
 
       return {
         base: spDevelopment ? '/__spve/' : undefined,
@@ -84,6 +121,7 @@ function spvePlugin() {
           https,
           port: settings.dev.vitePort,
           strictPort: true,
+          watch: { ignored: ['**/.spve/**'] },
           ws: spDevelopment ? { path: '/__spve-hmr' } : undefined,
         },
         build:
@@ -109,13 +147,14 @@ function spvePlugin() {
     },
 
     configureServer(server) {
+      server.watcher.add(projectConfigFile)
+      server.watcher.on('change', (file) => {
+        if (path.resolve(file) === projectConfigFile) void server.restart()
+      })
+
       if (!spMode || !webpart) return
 
       const controller = new AbortController()
-      const heftLogger = createHeftLogger(server.config.logLevel, {
-        prefix: '[heft]',
-        allowClearScreen: false,
-      })
       let heftProcess
       let started = false
       let stopped = false
@@ -181,6 +220,7 @@ function spvePlugin() {
     resolveId(id) {
       if (id === virtualStandalone) return resolvedVirtualStandalone
       if (id === virtualSharePoint) return resolvedVirtualSharePoint
+      if (id === virtualVueProperties) return resolvedVirtualVueProperties
     },
 
     load(id) {
@@ -190,10 +230,14 @@ function spvePlugin() {
           import { createMsalSP } from 'spve/internal/msal'
           app.mount({
             element: document.querySelector('#spve-local'),
-            props: { description: 'Standalone Vite+ development mode' },
-            services: { sp: await createMsalSP() },
+            props: ${JSON.stringify(applicationProps)},
+            services: { sp: await createMsalSP(${JSON.stringify(sharePointSiteUrl)}) },
           })
         `
+      }
+
+      if (id === resolvedVirtualVueProperties) {
+        return `export default ${JSON.stringify(vueProperties)}`
       }
 
       if (id === resolvedVirtualSharePoint) {
@@ -262,7 +306,7 @@ function spvePlugin() {
 
     async closeBundle() {
       if (!packageWebpartOnClose || !webpart) return
-      await packageWebpart(webpart)
+      await packageWebpart(webpart, undefined, heftLogger)
     },
   }
 }

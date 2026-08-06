@@ -1,98 +1,28 @@
 import { spawn } from 'node:child_process'
-import { cpSync, existsSync, mkdirSync, readFileSync, rmSync, writeFileSync } from 'node:fs'
-import { fileURLToPath } from 'node:url'
+import { existsSync, readFileSync, rmSync } from 'node:fs'
 import os from 'node:os'
 import path from 'node:path'
 import pc from 'picocolors'
+import { prepareWebpart } from './project.mjs'
+import { ensureToolchain, managedNodeCommand } from './toolchain.mjs'
 
-const template = fileURLToPath(new URL('./template/webpart', import.meta.url))
 const ansiEscape = new RegExp(`${String.fromCodePoint(27)}\\[[0-?]*[ -/]*[@-~]`, 'g')
+
+export { prepareWebpart }
 
 function readJson(file) {
   return JSON.parse(readFileSync(file, 'utf8'))
 }
 
-function writeJson(file, value) {
-  writeFileSync(file, `${JSON.stringify(value, null, 2)}\n`)
-}
-
-function kebabCase(value) {
-  return value
-    .trim()
-    .replace(/([a-z0-9])([A-Z])/g, '$1-$2')
-    .replace(/[^a-zA-Z0-9]+/g, '-')
-    .replace(/^-+|-+$/g, '')
-    .toLowerCase()
-}
-
-export function prepareWebpart(root, config, siteUrl) {
-  const webpart = path.join(root, '.spve/webpart')
-  mkdirSync(webpart, { recursive: true })
-  cpSync(template, webpart, { recursive: true, force: true })
-
-  const name = kebabCase(config.name)
-  const pascal = name
-    .split('-')
-    .map((part) => part[0].toUpperCase() + part.slice(1))
-    .join('')
-  const manifestFile = path.join(webpart, 'src/webparts/spve/SpveWebPart.manifest.json')
-  const manifest = readJson(manifestFile)
-  manifest.id = config.ids.component
-  manifest.alias = `${pascal}WebPart`
-  manifest.preconfiguredEntries[0].title.default = config.title
-  manifest.preconfiguredEntries[0].description.default = config.description ?? ''
-  manifest.preconfiguredEntries[0].properties.description = config.description ?? ''
-  writeJson(manifestFile, manifest)
-
-  const buildFile = path.join(webpart, 'config/config.json')
-  const build = readJson(buildFile)
-  build.bundles = {
-    [`${name}-web-part`]: {
-      components: [
-        {
-          entrypoint: './lib/webparts/spve/SpveWebPart.js',
-          manifest: './src/webparts/spve/SpveWebPart.manifest.json',
-        },
-      ],
-    },
-  }
-  writeJson(buildFile, build)
-
-  const packageFile = path.join(webpart, 'config/package-solution.json')
-  const solution = readJson(packageFile)
-  const version = config.version.split('-')[0].split('.')
-  const spfxVersion = [...version, ...Array(4 - version.length).fill('0')].join('.')
-  solution.solution.name = `${name}-client-side-solution`
-  solution.solution.id = config.ids.solution
-  solution.solution.version = spfxVersion
-  solution.solution.metadata.shortDescription.default = config.description ?? ''
-  solution.solution.metadata.longDescription.default = config.description ?? ''
-  solution.solution.features[0].id = config.ids.feature
-  solution.solution.features[0].title = `${config.title} feature`
-  solution.solution.features[0].description = `Activates the ${config.title} solution.`
-  solution.paths.zippedPackage = `solution/${name}.sppkg`
-  writeJson(packageFile, solution)
-
-  const serveFile = path.join(webpart, 'config/serve.json')
-  const serve = readJson(serveFile)
-  serve.port = config.dev.spfxPort
-  if (siteUrl) {
-    serve.initialPage = `${siteUrl.replace(/\/$/, '')}/_layouts/15/workbench.aspx`
-  }
-  writeJson(serveFile, serve)
-
-  const packageJsonFile = path.join(webpart, 'package.json')
-  const packageJson = readJson(packageJsonFile)
-  packageJson.name = `${name}-webpart`
-  packageJson.version = config.version
-  writeJson(packageJsonFile, packageJson)
-
-  return webpart
-}
-
 function run(command, args, cwd, signal, env) {
   return new Promise((resolve, reject) => {
-    const child = spawn(command, args, { cwd, stdio: 'inherit', signal, env })
+    const child = spawn(command, args, {
+      cwd,
+      stdio: 'inherit',
+      signal,
+      env,
+      shell: process.platform === 'win32',
+    })
     child.once('error', reject)
     child.once('exit', (code) => {
       if (code === 0) resolve()
@@ -188,13 +118,14 @@ function createHeftReporter(logger) {
       /^-+ (Finished|Aborted|Failed)/,
       /^New run requested by /,
       /^Cancelling incremental build/,
+      /^Immediate rerun requested\. Executing\.$/,
       /^Waiting for changes\./,
       /^Encountered \d+ errors?$/,
       /^\[build:clean\] /,
       /^\[build:set-browserslist-ignore-old-data-env-var\] /,
       /^\[build:sass\] (Generating|Generated)/,
       /^\[build:copy-javascript\] /,
-      /^\[build:typescript\] (Using TypeScript|Starting compilation|File change detected|Found \d+ errors?\. Watching|Copied|Encountered \d+)/,
+      /^\[build:typescript\] (Using TypeScript|Starting compilation|File change detected|Found \d+ errors?\. Watching|Copied|Encountered \d+|All requested file copy operations)/,
       /^\[build:lint\] Linting isn't currently supported in watch mode/,
       /^\[build:webpack\] (Using Webpack|Starting webpack-dev-server|Started Webpack Dev Server|Running incremental Webpack compilation|Webpack has not detected changes)/,
       /^\[build:configure-webpack-serve\]$/,
@@ -203,6 +134,15 @@ function createHeftReporter(logger) {
       /^<i> \[webpack-dev-server\] (\[HPM\] Proxy created|Project is running at:|Loopback:)/,
       /^<i> \[webpack-dev-server\] \[HPM\] (Upgrading to WebSocket|Client disconnected)/,
       /^Entrypoint .+ \[big\] /,
+      /^resolve ['"]/,
+      /^using description file:/,
+      /^Field 'browser' doesn't contain a valid alias configuration$/,
+      /^(?:no extension|as directory)$/,
+      /^\.[a-z0-9]+$/,
+      /^\S+ doesn't exist$/,
+      /^webpack \S+ compiled with \d+ errors? in /,
+      /^---- build encountered an error /,
+      /^\[build:webpack\] (?:Error: )?.*Module not found:/,
     ]
     if (noise.some((pattern) => pattern.test(text))) return
 
@@ -217,21 +157,21 @@ function createHeftReporter(logger) {
   }
 }
 
-export async function ensureHeft(webpart, signal) {
-  const heft = path.join(webpart, 'node_modules/.bin/heft')
-  if (!existsSync(heft)) {
-    console.log('Installing the hidden SharePoint workspace dependencies...')
-    await run('npm', ['install', '--include=dev'], webpart, signal)
-  }
-  return heft
+export async function ensureHeft(webpart, signal, logger) {
+  return (await ensureToolchain(webpart, signal, logger)).heft
 }
 
-export async function ensureDevCertificate(webpart, signal) {
+function runHeft(heft, args, cwd, signal, env) {
+  const managed = managedNodeCommand(heft, args)
+  return run(managed.command, managed.args, cwd, signal, env)
+}
+
+export async function ensureDevCertificate(webpart, signal, logger) {
   const certificate = path.join(os.homedir(), '.rushstack/rushstack-serve.pem')
   const key = path.join(os.homedir(), '.rushstack/rushstack-serve.key')
+  const heft = await ensureHeft(webpart, signal, logger)
   if (!existsSync(certificate) || !existsSync(key)) {
-    const heft = await ensureHeft(webpart, signal)
-    await run(heft, ['trust-dev-cert'], webpart, signal)
+    await runHeft(heft, ['trust-dev-cert'], webpart, signal)
   }
   return {
     cert: readFileSync(certificate),
@@ -239,32 +179,34 @@ export async function ensureDevCertificate(webpart, signal) {
   }
 }
 
-export async function packageWebpart(webpart, signal) {
-  const heft = await ensureHeft(webpart, signal)
+export async function packageWebpart(webpart, signal, logger) {
+  const heft = await ensureHeft(webpart, signal, logger)
   rmSync(path.join(webpart, 'dist'), { recursive: true, force: true })
   rmSync(path.join(webpart, 'release'), { recursive: true, force: true })
   const env = { ...process.env, SPVE_PRODUCTION: '1' }
-  await run(heft, ['test', '--clean', '--production'], webpart, signal, env)
-  await run(heft, ['package-solution', '--production'], webpart, signal, env)
+  await runHeft(heft, ['test', '--clean', '--production'], webpart, signal, env)
+  await runHeft(heft, ['package-solution', '--production'], webpart, signal, env)
 }
 
 export async function startWebpart(webpart, signal, logger) {
-  const heft = await ensureHeft(webpart, signal)
+  const heft = await ensureHeft(webpart, signal, logger)
   signal?.throwIfAborted()
-  const config = readJson(path.resolve(webpart, '../..', 'spve.config.json'))
+  const config = readJson(path.join(webpart, 'config/spve.json'))
   const serve = readJson(path.join(webpart, 'config/serve.json'))
   const tenantDomain = new URL(serve.initialPage).hostname
-  const child = spawn(heft, ['start', '--clean'], {
+  const managed = managedNodeCommand(heft, ['start', '--clean'])
+  const child = spawn(managed.command, managed.args, {
     cwd: webpart,
     env: {
       ...process.env,
-      SPVE_VITE_PORT: String(config.dev.vitePort),
+      SPVE_VITE_PORT: String(config.vitePort),
       SPFX_SERVE_TENANT_DOMAIN: tenantDomain,
     },
     // Heft is a managed background server. Giving it the terminal's stdin makes
     // Ctrl+C compete with Vite+'s runner and can leave the runner waiting for Enter.
     stdio: ['ignore', 'pipe', 'pipe'],
     detached: process.platform !== 'win32',
+    shell: process.platform === 'win32',
   })
   const report = createHeftReporter(logger)
   pipeLines(child.stdout, report)

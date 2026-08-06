@@ -28,3 +28,7 @@ The interactive wizard asks for the project/web-part name, framework, descriptio
 SharePoint site. Microsoft Entra configuration is optional. The technical name is inferred from the
 project name and offered as the editable project slug. Dependency installation is offered at the end
 and defaults to Yes; non-interactive creation can opt in with `--install`.
+
+Generated projects pin their application runtime to Node 24 through Vite+ and run the hidden
+SPFx/Heft toolchain with Node 22. `vp install` also prepares a shared, read-only SPFx dependency
+cache and generates the typed `.spve` workspace; developers do not edit `.spve`.

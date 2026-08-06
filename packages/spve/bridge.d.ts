@@ -1,3 +1,5 @@
+import type { AppProps as DefaultAppProps, Services as DefaultServices } from 'spve/client'
+
 export type SpveProps = Record<string, unknown>
 export type SpveServices = Record<string, unknown>
 
@@ -13,8 +15,8 @@ export interface SpveInstance<Props extends object> {
 }
 
 export interface SpveModule<
-  Props extends object = SpveProps,
-  Services extends object = SpveServices,
+  Props extends object = DefaultAppProps,
+  Services extends object = DefaultServices,
 > {
   mount(context: SpveContext<Props, Services>): SpveInstance<Props>
 }

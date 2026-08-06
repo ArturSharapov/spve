@@ -1,5 +1,5 @@
 import { Version } from '@microsoft/sp-core-library'
-import { type IPropertyPaneConfiguration, PropertyPaneTextField } from '@microsoft/sp-property-pane'
+/* __SPVE_PROPERTY_PANE_IMPORTS__ */
 import { BaseClientSideWebPart } from '@microsoft/sp-webpart-base'
 import { type SPFI, SPFx, spfi } from '@pnp/sp'
 import '@pnp/sp/presets/all'
@@ -27,7 +27,7 @@ function loadModule(): Promise<Module> {
 }
 
 export interface ISpveWebPartProps extends Record<string, unknown> {
-  description: string
+  /* __SPVE_PROPERTIES_TYPE__ */
 }
 
 export default class SpveWebPart extends BaseClientSideWebPart<ISpveWebPartProps> {
@@ -89,12 +89,7 @@ export default class SpveWebPart extends BaseClientSideWebPart<ISpveWebPartProps
           groups: [
             {
               groupName: 'Web part properties',
-              groupFields: [
-                PropertyPaneTextField('description', {
-                  label: 'Description',
-                  multiline: true,
-                }),
-              ],
+              groupFields: [/* __SPVE_PROPERTY_FIELDS__ */],
             },
           ],
         },
