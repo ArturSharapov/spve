@@ -78,7 +78,7 @@ Options:
       --title <title>         Project and SharePoint web-part title
       --slug <slug>           Project and web-part technical name
       --description <text>    SharePoint web-part description
-      --version <version>     Solution version (default: 0.1.0)
+      --version <version>     Solution version (default: 0.0.1)
       --vite-port <port>      Vite development port (default: 17641)
       --spfx-port <port>      Heft development port (default: 17642)
       --site-url <url>        SharePoint site URL for local development
@@ -403,7 +403,7 @@ async function resolveOptions(args) {
     if (!frameworkChoices.some((choice) => choice.value === framework)) {
       throw new Error(`Unknown template: ${framework}`)
     }
-    const version = args.version ?? '0.1.0'
+    const version = args.version ?? '0.0.1'
     if (!isValidVersion(version)) throw new Error(`Invalid solution version: ${version}`)
     const vitePort = parsePort(args.vitePort ?? 17641, 'Vite port')
     const spfxPort = parsePort(args.spfxPort ?? 17642, 'SPFx port')
@@ -429,7 +429,7 @@ async function resolveOptions(args) {
       siteUrl: args.siteUrl,
       tenantId: args.tenantId,
       clientId: args.clientId,
-      spve: args.spve ?? '^0.1.0',
+      spve: args.spve ?? '^0.0.1',
       install: args.install ?? false,
     }
   }
@@ -654,7 +654,7 @@ async function resolveOptions(args) {
 
   const vitePort = draft.customizePorts ? parsePort(draft.vitePort, 'Vite port') : 17641
   const spfxPort = draft.customizePorts ? parsePort(draft.spfxPort, 'SPFx port') : 17642
-  const version = args.version ?? '0.1.0'
+  const version = args.version ?? '0.0.1'
   if (!isValidVersion(version)) throw new Error(`Invalid solution version: ${version}`)
   const framework = draft.framework
 
@@ -672,7 +672,7 @@ async function resolveOptions(args) {
     siteUrl: draft.siteUrl,
     tenantId: draft.configureEntra ? draft.tenantId : undefined,
     clientId: draft.configureEntra ? draft.clientId : undefined,
-    spve: args.spve ?? '^0.1.0',
+    spve: args.spve ?? '^0.0.1',
     install: draft.install,
   }
 }
@@ -813,7 +813,7 @@ function writePackageJson(directory, options) {
   const framework = frameworkDependencies(options.template)
   const packageJson = {
     name: options.packageName,
-    version: '0.0.0',
+    version: '0.0.1',
     private: true,
     type: 'module',
     scripts: {

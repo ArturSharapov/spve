@@ -10,7 +10,7 @@ function projectConfig() {
     name: 'typed-app',
     title: 'Typed app',
     description: 'Typed test web part',
-    version: '0.1.0',
+    version: '0.0.1',
     ids: {
       component: '39908337-094d-40b3-bc37-609b0e147506',
       solution: 'c5e8c86b-015b-4840-afeb-49934392ff74',

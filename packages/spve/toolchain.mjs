@@ -59,7 +59,7 @@ function cacheRoot() {
 function descriptor() {
   const packageJson = JSON.parse(readFileSync(templatePackage, 'utf8'))
   packageJson.name = 'spve-sharepoint-toolchain'
-  packageJson.version = '0.0.0'
+  packageJson.version = '0.0.1'
   return packageJson
 }
 

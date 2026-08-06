@@ -1,6 +1,6 @@
 {
   "name": "create-spve",
-  "version": "0.1.0",
+  "version": "0.0.1",
   "description": "Create a framework-agnostic SPVE SharePoint application",
   "keywords": [
     "sharepoint",

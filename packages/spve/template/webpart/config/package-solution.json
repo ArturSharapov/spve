@@ -3,7 +3,7 @@
   "solution": {
     "name": "spve-client-side-solution",
     "id": "00000000-0000-4000-8000-000000000001",
-    "version": "0.1.0.0",
+    "version": "0.0.1.0",
     "includeClientSideAssets": true,
     "skipFeatureDeployment": true,
     "developer": {
@@ -25,7 +25,7 @@
         "title": "SPVE feature",
         "description": "Activates the SPVE solution.",
         "id": "00000000-0000-4000-8000-000000000002",
-        "version": "1.0.0.0"
+        "version": "0.0.1.0"
       }
     ]
   },

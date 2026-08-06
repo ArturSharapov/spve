@@ -4,7 +4,7 @@ export default {
   name: 'spve-playground',
   title: 'SPVE Playground',
   description: 'SPVE integration playground',
-  version: '0.1.0',
+  version: '0.0.1',
   ids: {
     component: '7b6434a6-ec9b-4e2c-823e-72e906064c3c',
     solution: '6df5dd25-7eb6-48b2-b863-c4924db70acc',

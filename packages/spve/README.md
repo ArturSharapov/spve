@@ -47,7 +47,7 @@ import type { SpveConfig } from 'spve/config'
 export default {
   name: 'my-app',
   title: 'My App',
-  version: '0.1.0',
+  version: '0.0.1',
   ids: {
     component: '00000000-0000-0000-0000-000000000001',
     solution: '00000000-0000-0000-0000-000000000002',
