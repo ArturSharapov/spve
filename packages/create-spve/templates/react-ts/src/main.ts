@@ -1,26 +1,21 @@
-import { initializeSP, type SpveModule } from 'spve'
+import { initializeSP, type SpveApp } from 'spve'
 import { createElement } from 'react'
 import { createRoot } from 'react-dom/client'
 import { App } from './App'
 import './style.css'
 
-const application: SpveModule = {
+const app: SpveApp = {
   mount({ element, props, services }) {
     initializeSP(services.sp)
     const root = createRoot(element)
-    let currentProps = { ...props }
 
-    const render = () => root.render(createElement(App, currentProps))
-    render()
+    root.render(createElement(App, props))
 
     return {
-      setProps(next) {
-        currentProps = { ...next }
-        render()
-      },
+      setProps: (next) => root.render(createElement(App, next)),
       unmount: () => root.unmount(),
     }
   },
 }
 
-export default application
+export default app

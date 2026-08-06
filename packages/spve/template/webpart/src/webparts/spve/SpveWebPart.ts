@@ -3,17 +3,17 @@ import { Version } from '@microsoft/sp-core-library'
 import { BaseClientSideWebPart } from '@microsoft/sp-webpart-base'
 import { type SPFI, SPFx, spfi } from '@pnp/sp'
 import '@pnp/sp/presets/all'
-import type { SpveInstance, SpveModule } from 'spve'
+import type { SpveApp, SpveInstance } from 'spve'
 
 declare const __SPVE_DEV__: boolean
 
 type Services = { sp: SPFI }
-type App = SpveInstance<ISpveWebPartProps>
-type Module = SpveModule<ISpveWebPartProps, Services>
-let modulePromise: Promise<Module> | undefined
+type App = SpveApp<ISpveWebPartProps, Services>
+type Instance = SpveInstance<ISpveWebPartProps>
+let modulePromise: Promise<App> | undefined
 let sharedSharePoint: SPFI | undefined
 
-function loadModule(): Promise<Module> {
+function loadModule(): Promise<App> {
   if (modulePromise) return modulePromise
 
   modulePromise = __SPVE_DEV__
@@ -21,7 +21,7 @@ function loadModule(): Promise<Module> {
     : Promise.all([
         import('../../lib/appcode/index.js'),
         import('../../lib/appcode/index.css'),
-      ]).then(([module]) => module.default as Module)
+      ]).then(([module]) => module.default as App)
 
   return modulePromise
 }
@@ -33,7 +33,7 @@ export interface ISpveWebPartProps extends Record<string, unknown> {
 export default class SpveWebPart extends BaseClientSideWebPart<ISpveWebPartProps> {
   private mountingTimer?: ReturnType<typeof setTimeout>
   private renderVersion = 0
-  private app?: App
+  private app?: Instance
   private sharepoint!: SPFI
 
   protected async onInit(): Promise<void> {

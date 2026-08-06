@@ -1,4 +1,5 @@
-import type { SPFI } from '@pnp/sp'
+import './sp.js'
+import type { SPFI } from '@pnp/sp/presets/all.js'
 
 export * from './config.js'
 
@@ -28,7 +29,7 @@ export interface SpveInstance<Props extends object> {
   unmount(): void
 }
 
-export interface SpveModule<
+export interface SpveApp<
   Props extends object = AppProps,
   ModuleServices extends object = Services,
 > {
@@ -36,7 +37,3 @@ export interface SpveModule<
 }
 
 export function initializeSP(sharepoint: SPFI): void
-
-declare module 'sp' {
-  export const sp: SPFI
-}

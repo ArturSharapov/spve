@@ -1,10 +1,10 @@
-import { initializeSP, type SpveModule } from 'spve'
+import { initializeSP, type SpveApp } from 'spve'
 import { mount, unmount } from 'svelte'
 import { writable } from 'svelte/store'
 import App from './App.svelte'
 import './style.css'
 
-const application: SpveModule = {
+const app: SpveApp = {
   mount({ element, props, services }) {
     initializeSP(services.sp)
     const properties = writable({ ...props })
@@ -17,4 +17,4 @@ const application: SpveModule = {
   },
 }
 
-export default application
+export default app

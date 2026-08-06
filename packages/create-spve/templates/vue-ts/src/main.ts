@@ -1,9 +1,9 @@
-import { initializeSP, type SpveModule } from 'spve'
+import { initializeSP, type SpveApp } from 'spve'
 import { createApp, h, reactive } from 'vue'
 import App from './App.vue'
 import './style.css'
 
-const application: SpveModule = {
+const app: SpveApp = {
   mount({ element, props, services }) {
     initializeSP(services.sp)
     const state = reactive({ ...props })
@@ -22,4 +22,4 @@ const application: SpveModule = {
   },
 }
 
-export default application
+export default app

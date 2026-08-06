@@ -1,3 +1,3 @@
-import type { SPFI } from '@pnp/sp'
-
-export const sp: SPFI
+declare module 'sp' {
+  export const sp: import('@pnp/sp/presets/all.js').SPFI
+}

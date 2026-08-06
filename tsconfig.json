@@ -4,7 +4,7 @@
     "module": "nodenext",
     "moduleResolution": "nodenext",
     "paths": {
-      "spve": ["./packages/spve/bridge.d.ts"],
+      "spve": ["./packages/spve/index.d.ts"],
       "spve/*": ["./packages/spve/*.d.ts"]
     },
     "allowImportingTsExtensions": true,

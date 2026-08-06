@@ -1,24 +1,18 @@
-import { initializeSP, type SpveModule } from 'spve'
+import { initializeSP, type SpveApp } from 'spve'
 import { h, render } from 'preact'
 import { App } from './App'
 import './style.css'
 
-const application: SpveModule = {
+const app: SpveApp = {
   mount({ element, props, services }) {
     initializeSP(services.sp)
-    let currentProps = { ...props }
-
-    const update = () => render(h(App, currentProps), element)
-    update()
+    render(h(App, props), element)
 
     return {
-      setProps(next) {
-        currentProps = { ...next }
-        update()
-      },
+      setProps: (next) => render(h(App, next), element),
       unmount: () => render(null, element),
     }
   },
 }
 
-export default application
+export default app

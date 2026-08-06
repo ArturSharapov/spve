@@ -1,10 +1,10 @@
 import '@builder.io/qwik/qwikloader.js'
-import { initializeSP, type SpveModule } from 'spve'
+import { initializeSP, type SpveApp } from 'spve'
 import { render } from '@builder.io/qwik'
 import { App } from './App'
 import './style.css'
 
-const application: SpveModule = {
+const app: SpveApp = {
   mount({ element, props, services }) {
     initializeSP(services.sp)
     const eventName = `spve:${crypto.randomUUID()}`
@@ -23,4 +23,4 @@ const application: SpveModule = {
   },
 }
 
-export default application
+export default app

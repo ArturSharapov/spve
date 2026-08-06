@@ -1,10 +1,12 @@
 <script setup lang="ts">
+import { sp } from 'sp'
 import spveProps from 'spve/vue'
 import { onMounted } from 'vue'
 
 const props = defineProps(spveProps)
-onMounted(() => {
-  console.log(props)
+onMounted(async () => {
+  const docs = await sp.web.lists.getByTitle('Documents').items.getPaged()
+  console.log({docs})
 })
 
 const title = `SPVE Playground`

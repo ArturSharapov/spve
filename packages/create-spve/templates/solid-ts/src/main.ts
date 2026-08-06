@@ -1,11 +1,11 @@
-import { initializeSP, type AppProps, type SpveModule } from 'spve'
+import { initializeSP, type AppProps, type SpveApp } from 'spve'
 import { createComponent } from 'solid-js'
 import { createStore, reconcile } from 'solid-js/store'
 import { render } from 'solid-js/web'
 import { App } from './App'
 import './style.css'
 
-const application: SpveModule = {
+const app: SpveApp = {
   mount({ element, props, services }) {
     initializeSP(services.sp)
     const [state, setState] = createStore<AppProps>({ ...props })
@@ -18,4 +18,4 @@ const application: SpveModule = {
   },
 }
 
-export default application
+export default app
