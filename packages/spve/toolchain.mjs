@@ -224,7 +224,7 @@ function ensureLink(webpart, toolchain, key) {
   throw new Error('SPVE: could not link the shared SharePoint toolchain')
 }
 
-export async function ensureToolchain(webpart, signal, logger) {
+export async function prepareToolchain(signal, logger, { showProgress = true } = {}) {
   const packageJson = descriptor()
   const key = toolchainKey(packageJson)
   const root = path.join(cacheRoot(), 'toolchains')
@@ -239,9 +239,9 @@ export async function ensureToolchain(webpart, signal, logger) {
     const ownsLock = await acquireLock(lock, isReady, signal)
     if (ownsLock) {
       const temporary = `${toolchain}.tmp-${process.pid}-${randomUUID()}`
-      const progress = spinner()
+      const progress = showProgress ? spinner() : undefined
       const startedAt = Date.now()
-      progress.start('Installing SharePoint toolchain')
+      progress?.start('Installing SharePoint toolchain')
       try {
         rmSync(temporary, { recursive: true, force: true })
         mkdirSync(temporary, { recursive: true })
@@ -271,9 +271,9 @@ export async function ensureToolchain(webpart, signal, logger) {
         renameSync(temporary, toolchain)
         makeReadOnly(toolchain)
         const elapsed = ((Date.now() - startedAt) / 1000).toFixed(1)
-        progress.stop(`SharePoint toolchain installed ${pc.dim(`in ${elapsed}s`)}`)
+        progress?.stop(`SharePoint toolchain installed ${pc.dim(`in ${elapsed}s`)}`)
       } catch (error) {
-        progress.error('SharePoint toolchain installation failed')
+        progress?.error('SharePoint toolchain installation failed')
         removeGeneratedDirectory(temporary)
         if (logger) logger.error(error.message, { timestamp: true, environment: pc.dim('(setup)') })
         throw error
@@ -283,6 +283,11 @@ export async function ensureToolchain(webpart, signal, logger) {
     }
   }
 
+  return { key, toolchain }
+}
+
+export async function ensureToolchain(webpart, signal, logger) {
+  const { key, toolchain } = await prepareToolchain(signal, logger)
   ensureLink(webpart, toolchain, key)
   return { heft: path.join(webpart, 'node_modules/.bin/heft'), key, toolchain }
 }

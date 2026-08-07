@@ -15,10 +15,13 @@ import {
 } from 'node:fs'
 import { fileURLToPath } from 'node:url'
 import { styleText } from 'node:util'
+import os from 'node:os'
 import path from 'node:path'
 
 const packageRoot = fileURLToPath(new URL('..', import.meta.url))
 const templatesRoot = path.join(packageRoot, 'templates')
+let activeSharePointPreparation
+let vitePlusExecutable
 const frameworkChoices = [
   { value: 'vanilla', label: 'Vanilla', hint: 'TypeScript', color: [247, 223, 30] },
   { value: 'vue', label: 'Vue', hint: 'TypeScript', color: [66, 184, 131] },
@@ -158,6 +161,7 @@ function isEmptyDirectory(directory) {
 }
 
 function cancel(message) {
+  activeSharePointPreparation?.abort()
   prompts.cancel(message)
   process.exit(1)
 }
@@ -208,6 +212,314 @@ function gradientText(text, start, end, bold = true) {
 function clearNpmCreatePrelude() {
   if (!process.stdout.isTTY || process.env.npm_command !== 'init') return
   process.stdout.write('\x1b[3A\x1b[J')
+}
+
+function findVitePlus() {
+  const names = process.platform === 'win32' ? ['vp.exe', 'vp.cmd', 'vp'] : ['vp']
+  const homes = [process.env.VP_HOME, path.join(os.homedir(), '.vite-plus')].filter(Boolean)
+
+  for (const home of homes) {
+    for (const name of names) {
+      const candidate = path.join(home, 'bin', name)
+      if (existsSync(candidate)) return candidate
+    }
+  }
+
+  for (const directory of (process.env.PATH ?? '').split(path.delimiter)) {
+    if (!directory || directory.includes(`${path.sep}node_modules${path.sep}.bin`)) continue
+    for (const name of names) {
+      const candidate = path.join(directory, name)
+      if (existsSync(candidate)) return candidate
+    }
+  }
+}
+
+function vitePlusInstaller() {
+  if (process.platform === 'win32') {
+    return {
+      command: 'irm https://vite.plus/ps1 | iex',
+      executable: 'powershell.exe',
+      args: [
+        '-NoProfile',
+        '-ExecutionPolicy',
+        'Bypass',
+        '-Command',
+        'irm https://vite.plus/ps1 | iex',
+      ],
+    }
+  }
+
+  return {
+    command: 'curl -fsSL https://vite.plus | bash',
+    executable: 'bash',
+    args: ['-c', 'curl -fsSL https://vite.plus | bash'],
+  }
+}
+
+function installVitePlus(installer) {
+  return new Promise((resolve, reject) => {
+    const child = spawn(installer.executable, installer.args, {
+      stdio: ['ignore', 'pipe', 'pipe'],
+    })
+    let output = ''
+    const collect = (chunk) => {
+      output = `${output}${chunk}`.slice(-16_000)
+    }
+
+    child.stdout.on('data', collect)
+    child.stderr.on('data', collect)
+    child.once('error', reject)
+    child.once('close', (code) => {
+      if (code === 0) resolve()
+      else {
+        const details = output.trim()
+        reject(
+          new Error(`Vite+ installer exited with code ${code}${details ? `\n${details}` : ''}`),
+        )
+      }
+    })
+  })
+}
+
+async function ensureVitePlus() {
+  vitePlusExecutable = findVitePlus()
+  if (vitePlusExecutable) return
+
+  prompts.note(
+    [
+      styleText(
+        'dim',
+        'Vite+ manages your runtime, package manager, and frontend toolchain in one place.',
+      ),
+      styleText('dim', 'It replaces nvm and provides a unified first-class developer experience.'),
+      styleText(
+        'dim',
+        'Built by trusted industry-leading engineers, same team behind Vite, Vitest, Rolldown, and Oxc.',
+      ),
+      `${styleText('dim', 'Learn more:')} ${styleText(['cyan', 'underline'], 'https://viteplus.dev')}`,
+    ].join('\n'),
+    `${gradientText('VITE+', [96, 165, 250], [168, 85, 247])} ${styleText('yellow', 'required')}`,
+  )
+
+  const installer = vitePlusInstaller()
+  const install = assertNotCancelled(
+    await prompts.confirm({
+      message: 'Install Vite+ now?',
+      initialValue: true,
+    }),
+  )
+  if (!install) cancel(`Vite+ is required. Install it with:\n${installer.command}`)
+
+  process.stdout.write(`${styleText('gray', prompts.S_BAR)}\n`)
+  const progress = paddedSpinner()
+  progress.start('Installing Vite+')
+  try {
+    await installVitePlus(installer)
+    vitePlusExecutable = findVitePlus()
+    if (!vitePlusExecutable)
+      throw new Error('Vite+ installed, but the `vp` executable was not found')
+    progress.stop('Vite+ installed')
+  } catch (error) {
+    progress.error('Vite+ installation failed')
+    throw error
+  }
+}
+
+function paddedSpinner({ delayedHint, hintDelay = 8_000 } = {}) {
+  if (!process.stdout.isTTY) return prompts.spinner()
+
+  const frames = ['◒', '◐', '◓', '◑']
+  const hintLines = delayedHint?.split('\n') ?? []
+  const bottomPadding = 2
+  let frame = 0
+  let timer
+  let hintTimer
+  let visibleHintLines = 0
+  let message = ''
+  let running = false
+  const restoreCursor = () => process.stdout.write('\x1b[?25h')
+  const render = () => {
+    process.stdout.write(
+      `\r\x1b[2K${styleText('magenta', frames[frame % frames.length])}  ${message}`,
+    )
+    frame++
+  }
+  const formatHint = (line) =>
+    `${styleText('gray', prompts.S_BAR)}  ${line
+      .split(/(\*[^*]+\*)/)
+      .map((part) =>
+        part.startsWith('*') && part.endsWith('*')
+          ? styleText(['dim', 'italic'], part.slice(1, -1))
+          : styleText('dim', part),
+      )
+      .join('')}`
+  const writeHintGuide = () => {
+    process.stdout.write(`\x1b[1B\r\x1b[2K${styleText('gray', prompts.S_BAR)}\x1b[1A\r`)
+  }
+  const writeHintLine = (index, clear = false) => {
+    const offset = index + 2
+    const trailingRows = clear ? 0 : bottomPadding
+    process.stdout.write(
+      `${clear ? `\x1b[${offset}B` : '\n'.repeat(offset)}\r\x1b[2K${clear ? '' : formatHint(hintLines[index])}${'\n'.repeat(trailingRows)}\x1b[${offset + trailingRows}A\r`,
+    )
+  }
+  const replaceHintLine = (index, line) => {
+    const offset = index + 2
+    process.stdout.write(`\x1b[${offset}B\r\x1b[2K${formatHint(line)}\x1b[${offset}A\r`)
+  }
+  const showHint = () => {
+    for (const [index] of hintLines.entries()) {
+      if (index === 0) writeHintGuide()
+      writeHintLine(index)
+      visibleHintLines = index + 1
+    }
+  }
+  const finish = (symbol, text, preserveHints = false) => {
+    if (!running) return
+    running = false
+    clearInterval(timer)
+    clearTimeout(hintTimer)
+    process.removeListener('exit', restoreCursor)
+    process.stdout.write('\r\x1b[2K')
+    if (preserveHints) {
+      process.stdout.write(`${symbol}  ${text}`)
+      if (visibleHintLines > 0) {
+        replaceHintLine(0, hintLines[0].replace(/^Taking/, 'Took'))
+      }
+      const nextLine = visibleHintLines > 0 ? visibleHintLines + 2 : 1
+      process.stdout.write(`\x1b[${nextLine}B\r\x1b[?25h`)
+      return
+    }
+    for (let index = 0; index < visibleHintLines; index++) writeHintLine(index, true)
+    const layoutRows = visibleHintLines ? visibleHintLines + bottomPadding + 1 : bottomPadding
+    process.stdout.write(`\x1b[1B\x1b[${layoutRows}M\x1b[1A\r`)
+    process.stdout.write('\x1b[?25h')
+    if (text) process.stdout.write(`${symbol}  ${text}\n`)
+  }
+
+  return {
+    start(text) {
+      message = text.replace(/\.+$/, '')
+      running = true
+      process.stdout.write(`\r${'\n'.repeat(bottomPadding)}\x1b[${bottomPadding}A\r\x1b[?25l`)
+      process.once('exit', restoreCursor)
+      render()
+      timer = setInterval(render, 80)
+      if (delayedHint) hintTimer = setTimeout(showHint, hintDelay)
+    },
+    stop(text) {
+      finish(styleText('green', '◇'), text)
+    },
+    complete(text) {
+      finish(styleText('green', '◇'), text, true)
+    },
+    error(text) {
+      finish(styleText('red', '▲'), text)
+    },
+    clear() {
+      finish('', '')
+    },
+  }
+}
+
+function startSharePointPreparation() {
+  const controller = new AbortController()
+  const localCli = path.resolve(packageRoot, '../spve/cli.mjs')
+  const npmArgs = [
+    'exec',
+    '--yes',
+    '--package=@spve/core@0.0.4',
+    '--',
+    'spve',
+    'prepare-toolchain',
+    '--silent',
+  ]
+  let command
+  let args
+
+  if (existsSync(localCli)) {
+    command = process.execPath
+    args = [localCli, 'prepare-toolchain', '--silent']
+  } else if (process.env.npm_execpath) {
+    const npmExecPath = process.env.npm_execpath
+    const isJavaScriptCli = /\.[cm]?js$/i.test(npmExecPath)
+    command = isJavaScriptCli ? process.execPath : npmExecPath
+    args = isJavaScriptCli ? [npmExecPath, ...npmArgs] : npmArgs
+  } else {
+    command = 'npm'
+    args = npmArgs
+  }
+
+  const child = spawn(command, args, {
+    stdio: ['ignore', 'pipe', 'pipe'],
+    signal: controller.signal,
+    shell: process.platform === 'win32' && command === 'npm',
+  })
+  let output = ''
+  let settled = false
+  const collect = (chunk) => {
+    output = `${output}${chunk}`.slice(-20_000)
+  }
+  child.stdout.on('data', collect)
+  child.stderr.on('data', collect)
+
+  const promise = new Promise((resolve) => {
+    child.once('error', (error) => {
+      settled = true
+      resolve({ error })
+    })
+    child.once('close', (code) => {
+      if (settled) return
+      settled = true
+      if (code === 0) resolve({})
+      else {
+        const details = output.trim()
+        resolve({
+          error: new Error(
+            `SharePoint preparation exited with code ${code}${details ? `\n${details}` : ''}`,
+          ),
+        })
+      }
+    })
+  })
+
+  const preparation = {
+    abort: () => controller.abort(),
+    get settled() {
+      return settled
+    },
+    promise,
+  }
+  activeSharePointPreparation = preparation
+  return preparation
+}
+
+async function finishSharePointPreparation(preparation, project) {
+  if (!preparation) return
+
+  let progress
+  if (!preparation.settled) {
+    progress = paddedSpinner({
+      delayedHint:
+        "Taking a while? Don't worry.\nSharePoint dependency installation is always slow.\nGood news, we do it only *once* for all your projects.",
+    })
+    progress.start('Preparing SharePoint toolchain')
+  }
+
+  const result = await preparation.promise
+  if (!result.error && project) {
+    try {
+      await prepareInstalledProject(project)
+    } catch (error) {
+      result.error = error
+    }
+  }
+  if (result.error) progress?.clear()
+  else progress?.complete('SharePoint toolchain prepared')
+  activeSharePointPreparation = undefined
+  if (result.error) {
+    prompts.log.warn('SharePoint toolchain preparation deferred until `vp dev -m sp`')
+  }
 }
 
 function renderHeader() {
@@ -434,7 +746,7 @@ async function resolveOptions(args) {
       siteUrl: args.siteUrl,
       tenantId: args.tenantId,
       clientId: args.clientId,
-      spve: args.spve ?? 'npm:@spve/core@^0.0.1',
+      spve: args.spve ?? 'npm:@spve/core@^0.0.4',
       install: args.install ?? false,
     }
   }
@@ -677,7 +989,7 @@ async function resolveOptions(args) {
     siteUrl: draft.siteUrl,
     tenantId: draft.configureEntra ? draft.tenantId : undefined,
     clientId: draft.configureEntra ? draft.clientId : undefined,
-    spve: args.spve ?? 'npm:@spve/core@^0.0.1',
+    spve: args.spve ?? 'npm:@spve/core@^0.0.4',
     install: draft.install,
   }
 }
@@ -941,10 +1253,11 @@ function createProject(options) {
   writeEnvironment(directory, options)
 }
 
-function installDependencies(directory) {
+function installDependencies(directory, prepareInBackground) {
   return new Promise((resolve, reject) => {
-    const child = spawn('vp', ['install'], {
+    const child = spawn(vitePlusExecutable ?? 'vp', ['install'], {
       cwd: path.resolve(directory),
+      env: prepareInBackground ? { ...process.env, SPVE_PREPARE_PROJECT_ONLY: '1' } : process.env,
       stdio: ['ignore', 'pipe', 'pipe'],
       shell: process.platform === 'win32',
     })
@@ -964,6 +1277,26 @@ function installDependencies(directory) {
           new Error(`vp install failed with exit code ${code}${details ? `\n${details}` : ''}`),
         )
       }
+    })
+  })
+}
+
+function prepareInstalledProject(directory) {
+  const executable = path.resolve(
+    directory,
+    'node_modules/.bin',
+    process.platform === 'win32' ? 'spve.cmd' : 'spve',
+  )
+  return new Promise((resolve, reject) => {
+    const child = spawn(executable, ['prepare'], {
+      cwd: path.resolve(directory),
+      stdio: 'ignore',
+      shell: process.platform === 'win32',
+    })
+    child.once('error', reject)
+    child.once('close', (code) => {
+      if (code === 0) resolve()
+      else reject(new Error(`spve prepare exited with code ${code}`))
     })
   })
 }
@@ -990,12 +1323,13 @@ function renderNextSteps(options) {
   }
   commands.push(`${colorText('vp', [168, 85, 247], true)} ${styleText('white', 'dev')}`)
 
-  prompts.outro(
-    [
-      styleText(['bold', 'cyan'], 'Next steps'),
-      '',
-      ...commands.map((command) => `  ${command}`),
-    ].join('\n'),
+  const message = [
+    styleText(['bold', 'cyan'], 'Next steps'),
+    '',
+    ...commands.map((command) => `  ${command}`),
+  ].join('\n')
+  process.stdout.write(
+    `${styleText('gray', prompts.S_BAR)}\n${styleText('gray', prompts.S_BAR_END)}  ${message}\n`,
   )
 }
 
@@ -1006,9 +1340,12 @@ async function main() {
     return
   }
 
+  let sharePointPreparation
   if (args.interactive) {
     clearNpmCreatePrelude()
     renderHeader()
+    await ensureVitePlus()
+    sharePointPreparation = startSharePointPreparation()
   }
   const options = await resolveOptions(args)
   if (!isEmptyDirectory(path.resolve(options.target))) {
@@ -1028,23 +1365,24 @@ async function main() {
 
   if (options.install) {
     if (args.interactive) {
-      const spinner = prompts.spinner()
-      if (process.stdout.isTTY) {
-        process.stdout.write('\n'.repeat(3))
-        process.stdout.write('\x1b[3A')
-      }
+      const spinner = paddedSpinner()
       spinner.start('Installing dependencies')
       try {
-        await installDependencies(options.target)
+        await installDependencies(options.target, Boolean(sharePointPreparation))
         spinner.stop('Dependencies installed')
       } catch (error) {
         spinner.error('Dependency installation failed')
         throw error
       }
     } else {
-      await installDependencies(options.target)
+      await installDependencies(options.target, Boolean(sharePointPreparation))
     }
   }
+
+  await finishSharePointPreparation(
+    sharePointPreparation,
+    options.install ? options.target : undefined,
+  )
 
   if (args.interactive) {
     renderNextSteps(options)
@@ -1054,6 +1392,7 @@ async function main() {
 }
 
 main().catch((error) => {
+  activeSharePointPreparation?.abort()
   const message = error instanceof Error ? error.message : String(error)
   console.error(`\n\x1b[31m${message}\x1b[0m`)
   process.exitCode = 1

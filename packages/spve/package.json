@@ -1,6 +1,6 @@
 {
   "name": "@spve/core",
-  "version": "0.0.1",
+  "version": "0.0.4",
   "description": "Vite integration for framework-agnostic SharePoint web parts",
   "keywords": [
     "sharepoint",
