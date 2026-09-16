@@ -36,4 +36,10 @@ export interface SpveApp<
   mount(context: SpveContext<Props, ModuleServices>): SpveInstance<Props>
 }
 
+export interface SpvePlugin {
+  <Props extends object, ModuleServices extends object>(
+    app: SpveApp<Props, ModuleServices>,
+  ): SpveApp<Props, ModuleServices>
+}
+
 export function initializeSP(sharepoint: SPFI): void

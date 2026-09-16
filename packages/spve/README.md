@@ -20,6 +20,62 @@ Application code accesses the shared PnPjs client without depending on its host:
 import { sp } from 'sp'
 ```
 
+React applications use the framework adapter so the application entry does not need to manage the
+React root or SharePoint lifecycle directly:
+
+```ts
+import { defineReactApp } from 'spve/react'
+import { App } from './App'
+
+export default defineReactApp(App)
+```
+
+The adapter also installs the React Fast Refresh preamble required when SharePoint, rather than
+Vite's transformed `index.html`, hosts the application during development.
+
+Context support is optional. Add it as an application plugin only when the app uses SPFx context:
+
+```ts
+import { defineReactApp } from 'spve/react'
+import { withContext } from 'spve/context'
+import { App } from './App'
+
+export default defineReactApp(App, withContext())
+```
+
+React components then access their own mounted context without passing it through props:
+
+```ts
+import { useSpContext } from 'spve/react/context'
+
+const context = useSpContext() // WebPartContext
+```
+
+Inside SharePoint this is the native `WebPartContext`. In standalone development SPVE supplies a
+compatible context backed by the same MSAL session as `sp`, including authenticated
+`spHttpClient`, AAD HTTP clients, Microsoft Graph clients, and common page-context values. Mock
+page and manifest values can be overridden through `withContext({ standalone: ... })`.
+
+Preact, Vue, Solid, and Qwik expose `useSpContext()` from `spve/<framework>/context`. Svelte
+exposes `getSpContext()` from `spve/svelte/context`. Vanilla and Lit render functions receive the
+context as their second argument when `withContext()` is installed.
+
+The root `spve` declarations and ordinary framework adapters do not reference `WebPartContext`.
+Consequently TypeScript only resolves the SPFx context type graph when application source imports
+`spve/context` or one of its framework accessors. The standalone context implementation is also a
+separate runtime entry and is absent from application bundles that do not use `withContext()`.
+
+Every bundled starter uses the same declarative adapter pattern:
+
+- `spve/vanilla`: `defineVanillaApp`
+- `spve/vue`: `defineVueApp`
+- `spve/react`: `defineReactApp`
+- `spve/preact`: `definePreactApp`
+- `spve/lit`: `defineLitApp`
+- `spve/svelte`: `defineSvelteApp`
+- `spve/solid`: `defineSolidApp`
+- `spve/qwik`: `defineQwikApp`
+
 The plugin owns standalone MSAL bootstrapping, the shared runtime, and a generated hidden SPFx
 workspace. Normal `vp dev` and `vp build` use Vite. `vp dev -m sp` also starts Heft, while
 `vp build -m sp` creates the SharePoint `.sppkg`.
@@ -59,6 +115,7 @@ export default {
     spfxPort: 17642,
   },
   webpart: {
+    alias: 'MyAppWebPart',
     properties: {
       description: {
         type: 'string',

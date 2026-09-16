@@ -18,6 +18,16 @@ const frameworks = {
   solid: 'src/App.tsx',
   qwik: 'src/App.tsx',
 }
+const frameworkAdapters = {
+  vanilla: 'defineVanillaApp',
+  vue: 'defineVueApp',
+  react: 'defineReactApp',
+  preact: 'definePreactApp',
+  lit: 'defineLitApp',
+  svelte: 'defineSvelteApp',
+  solid: 'defineSolidApp',
+  qwik: 'defineQwikApp',
+}
 
 test('generates every bundled framework starter', () => {
   const temporaryRoot = mkdtempSync(path.join(tmpdir(), 'create-sp-'))
@@ -51,10 +61,12 @@ test('generates every bundled framework starter', () => {
       assert.equal(result.status, 0, result.stderr || result.stdout)
       assert.equal(
         JSON.parse(readFileSync(path.join(target, 'package.json'))).dependencies.spve,
-        'npm:@spve/core@^0.0.4',
+        'npm:@spve/core@^0.0.7',
       )
       const packageJson = JSON.parse(readFileSync(path.join(target, 'package.json')))
       assert.equal(packageJson.scripts.postinstall, 'spve prepare')
+      assert.equal(packageJson.devDependencies['@microsoft/sp-http'], '1.22.0')
+      assert.equal(packageJson.devDependencies['@microsoft/sp-webpart-base'], '1.22.0')
       assert.equal(packageJson.devEngines.packageManager.name, 'pnpm')
       assert.equal(packageJson.devEngines.runtime.version, '24')
       assert.equal(packageJson.devEngines.runtime.onFail, 'download')
@@ -62,6 +74,11 @@ test('generates every bundled framework starter', () => {
       if (framework === 'vue') {
         assert.match(readFileSync(path.join(target, 'src/App.vue'), 'utf8'), /from 'spve\/vue'/)
       }
+      const mainEntry = framework === 'qwik' ? 'src/main.tsx' : 'src/main.ts'
+      const entrySource = readFileSync(path.join(target, mainEntry), 'utf8')
+      assert.match(entrySource, new RegExp(frameworkAdapters[framework]))
+      assert.match(entrySource, new RegExp(`from 'spve/${framework}'`))
+      assert.doesNotMatch(entrySource, /initializeSP|createRoot/)
       const loadedConfig = spawnSync(
         process.execPath,
         [

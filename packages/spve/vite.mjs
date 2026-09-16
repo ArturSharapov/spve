@@ -13,6 +13,7 @@ import {
 import { loadSpveConfig, normalizeConfig } from './project.mjs'
 
 const publicSharePoint = fileURLToPath(new URL('./sp.mjs', import.meta.url))
+const publicVueAdapter = fileURLToPath(new URL('./vue.mjs', import.meta.url))
 const privateMsal = fileURLToPath(new URL('./msal.mjs', import.meta.url))
 const virtualStandalone = 'virtual:spve-standalone'
 const resolvedVirtualStandalone = `\0${virtualStandalone}`
@@ -20,6 +21,8 @@ const virtualSharePoint = '/__spve-sharepoint'
 const resolvedVirtualSharePoint = '\0virtual:spve-sharepoint'
 const virtualVueProperties = 'spve/vue'
 const resolvedVirtualVueProperties = '\0virtual:spve-vue-properties'
+const virtualReactPreamble = 'virtual:spve-react-preamble'
+const resolvedVirtualReactPreamble = `\0${virtualReactPreamble}`
 
 function conciseError(message) {
   const error = new Error(message)
@@ -28,6 +31,16 @@ function conciseError(message) {
 }
 
 const projectDefaults = {
+  optimizeDeps: {
+    // The React adapter imports plugin-react's virtual preamble module, which must be resolved by
+    // Vite rather than dependency-prebundled as ordinary package source.
+    exclude: [
+      'spve/react',
+      '@spve/core/react',
+      'spve/react/context',
+      '@spve/core/react/context',
+    ],
+  },
   fmt: {
     ignorePatterns: ['.spve/**', 'pnpm-lock.yaml', 'pnpm-workspace.yaml'],
     semi: false,
@@ -222,6 +235,7 @@ function spvePlugin() {
       if (id === virtualStandalone) return resolvedVirtualStandalone
       if (id === virtualSharePoint) return resolvedVirtualSharePoint
       if (id === virtualVueProperties) return resolvedVirtualVueProperties
+      if (id === virtualReactPreamble) return resolvedVirtualReactPreamble
     },
 
     load(id) {
@@ -238,7 +252,14 @@ function spvePlugin() {
       }
 
       if (id === resolvedVirtualVueProperties) {
-        return `export default ${JSON.stringify(vueProperties)}`
+        return `
+          export { defineVueApp } from ${JSON.stringify(publicVueAdapter)}
+          export default ${JSON.stringify(vueProperties)}
+        `
+      }
+
+      if (id === resolvedVirtualReactPreamble) {
+        return spMode ? `import '@vitejs/plugin-react/preamble'` : ''
       }
 
       if (id === resolvedVirtualSharePoint) {

@@ -1,14 +1,11 @@
-import { $, component$, useOnWindow, useStore } from '@builder.io/qwik'
+import { $, component$, useContextProvider, useOnWindow, useStore } from '@builder.io/qwik'
 import type { AppProps } from 'spve'
-
-interface BridgeProps {
-  eventName: string
-  initialProps: AppProps
-}
+import { SpContext, type QwikAppBridgeProps } from 'spve/qwik'
 
 const title = __TITLE_JS__
 
-export const App = component$(({ eventName, initialProps }: BridgeProps) => {
+export const App = component$(({ eventName, initialProps, spContext }: QwikAppBridgeProps<AppProps>) => {
+  useContextProvider(SpContext, spContext)
   const props = useStore({ ...initialProps })
 
   useOnWindow(

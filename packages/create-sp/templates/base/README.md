@@ -3,7 +3,7 @@
 **DESCRIPTION**
 
 ```sh
-vp install
+vp i
 vp dev
 ```
 

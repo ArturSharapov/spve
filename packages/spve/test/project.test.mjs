@@ -17,6 +17,8 @@ function projectConfig() {
       feature: '4dc044a7-f530-489c-aaf4-67eedf70b1ae',
     },
     webpart: {
+      alias: 'TypedLegacyWebpart',
+      supportsFullBleed: true,
       properties: {
         description: {
           type: 'string',
@@ -152,6 +154,8 @@ test('generates typed properties and only rewrites changed generated files', () 
     assert.match(webpart, /"calloutMaxHeight":320/)
 
     const manifest = JSON.parse(readFileSync(manifestFile, 'utf8'))
+    assert.equal(manifest.alias, 'TypedLegacyWebpart')
+    assert.equal(manifest.supportsFullBleed, true)
     assert.deepEqual(manifest.preconfiguredEntries[0].properties, {
       count: 3,
       enabled: true,

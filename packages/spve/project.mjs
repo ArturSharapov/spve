@@ -237,7 +237,11 @@ export function normalizeConfig(config) {
     throw new Error('SPVE: dev.siteUrl must be a valid https:// SharePoint site URL')
   }
 
-  const configuredProperties = config.webpart?.properties
+  if (!config.webpart?.alias) {
+    throw new Error('SPVE: webpart.alias is required in spve.config.ts')
+  }
+
+  const configuredProperties = config.webpart.properties
   const properties = configuredProperties ?? {
     description: {
       type: 'string',
@@ -432,10 +436,6 @@ function generatedFiles(config) {
   const normalized = normalizeConfig(config)
   const files = readTemplate()
   const name = kebabCase(normalized.name)
-  const pascal = name
-    .split('-')
-    .map((part) => part[0].toUpperCase() + part.slice(1))
-    .join('')
   const pane = propertyPaneSource(normalized.webpart.properties)
 
   const sourceName = 'src/webparts/spve/SpveWebPart.ts'
@@ -452,9 +452,10 @@ function generatedFiles(config) {
   const manifest = JSON.parse(files.get(manifestName))
   const entry = manifest.preconfiguredEntries[0]
   manifest.id = normalized.ids.component
-  manifest.alias = `${pascal}WebPart`
+  manifest.alias = normalized.webpart.alias
   manifest.requiresCustomScript = normalized.webpart.requiresCustomScript
   manifest.supportedHosts = normalized.webpart.supportedHosts
+  manifest.supportsFullBleed = normalized.webpart.supportsFullBleed
   manifest.supportsThemeVariants = normalized.webpart.supportsThemeVariants
   entry.groupId = normalized.webpart.groupId
   entry.group.default = normalized.webpart.group

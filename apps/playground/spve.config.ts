@@ -16,6 +16,7 @@ export default {
     spfxPort: 17642,
   },
   webpart: {
+    alias: 'SpvePlaygroundWebPart',
     icon: 'Page',
     group: 'Advanced',
     supportedHosts: ['SharePointWebPart'],

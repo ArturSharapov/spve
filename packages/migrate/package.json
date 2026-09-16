@@ -1,0 +1,39 @@
+{
+  "name": "migrate-sp",
+  "version": "0.0.2",
+  "description": "Migrate legacy React SPFx projects to modern SPVE applications",
+  "keywords": [
+    "migration",
+    "react",
+    "sharepoint",
+    "spfx",
+    "spve"
+  ],
+  "license": "MIT",
+  "bin": {
+    "migrate-sp": "bin/index.mjs"
+  },
+  "files": [
+    "bin",
+    "lib",
+    "README.md"
+  ],
+  "type": "module",
+  "exports": {
+    ".": "./lib/migrate.mjs"
+  },
+  "publishConfig": {
+    "access": "public"
+  },
+  "scripts": {
+    "test": "vp test",
+    "release:dry": "vp pm publish --dry-run --access public --no-git-checks"
+  },
+  "dependencies": {
+    "create-sp": "^0.0.8",
+    "typescript": "^6.0.3"
+  },
+  "engines": {
+    "node": ">=22.12"
+  }
+}

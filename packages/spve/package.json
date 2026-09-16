@@ -1,6 +1,6 @@
 {
   "name": "@spve/core",
-  "version": "0.0.4",
+  "version": "0.0.7",
   "description": "Vite integration for framework-agnostic SharePoint web parts",
   "keywords": [
     "sharepoint",
@@ -30,9 +30,65 @@
       "types": "./vite.d.ts",
       "import": "./vite.mjs"
     },
+    "./context": {
+      "types": "./context.d.ts",
+      "import": "./context.mjs"
+    },
+    "./react/context": {
+      "types": "./context-react.d.ts",
+      "import": "./context-react.mjs"
+    },
+    "./preact/context": {
+      "types": "./context-preact.d.ts",
+      "import": "./context-preact.mjs"
+    },
+    "./vue/context": {
+      "types": "./context-vue.d.ts",
+      "import": "./context-vue.mjs"
+    },
+    "./solid/context": {
+      "types": "./context-solid.d.ts",
+      "import": "./context-solid.mjs"
+    },
+    "./svelte/context": {
+      "types": "./context-svelte.d.ts",
+      "import": "./context-svelte.mjs"
+    },
+    "./qwik/context": {
+      "types": "./context-qwik.d.ts",
+      "import": "./context-qwik.mjs"
+    },
+    "./react": {
+      "types": "./react.d.ts",
+      "import": "./react.mjs"
+    },
+    "./vanilla": {
+      "types": "./vanilla.d.ts",
+      "import": "./vanilla.mjs"
+    },
     "./vue": {
       "types": "./vue.d.ts",
       "import": "./vue.mjs"
+    },
+    "./preact": {
+      "types": "./preact.d.ts",
+      "import": "./preact.mjs"
+    },
+    "./lit": {
+      "types": "./lit.d.ts",
+      "import": "./lit.mjs"
+    },
+    "./svelte": {
+      "types": "./svelte.d.ts",
+      "import": "./svelte.mjs"
+    },
+    "./solid": {
+      "types": "./solid.d.ts",
+      "import": "./solid.mjs"
+    },
+    "./qwik": {
+      "types": "./qwik.d.ts",
+      "import": "./qwik.mjs"
     }
   },
   "publishConfig": {
@@ -51,8 +107,54 @@
   },
   "peerDependencies": {
     "@azure/msal-browser": "^2.38.2",
+    "@builder.io/qwik": ">=1.20.0",
+    "@microsoft/sp-http": "1.22.0",
+    "@microsoft/sp-webpart-base": "1.22.0",
     "@pnp/sp": "^3.26.0",
+    "@vitejs/plugin-react": "^6.0.5",
+    "lit": ">=3.0.0",
+    "preact": ">=10.0.0",
+    "react": ">=18.0.0",
+    "react-dom": ">=18.0.0",
+    "solid-js": ">=1.0.0",
+    "svelte": ">=5.0.0",
+    "vue": ">=3.0.0",
     "vite-plus": "^0.2.8"
+  },
+  "peerDependenciesMeta": {
+    "@builder.io/qwik": {
+      "optional": true
+    },
+    "@microsoft/sp-webpart-base": {
+      "optional": true
+    },
+    "@microsoft/sp-http": {
+      "optional": true
+    },
+    "@vitejs/plugin-react": {
+      "optional": true
+    },
+    "lit": {
+      "optional": true
+    },
+    "preact": {
+      "optional": true
+    },
+    "react": {
+      "optional": true
+    },
+    "react-dom": {
+      "optional": true
+    },
+    "solid-js": {
+      "optional": true
+    },
+    "svelte": {
+      "optional": true
+    },
+    "vue": {
+      "optional": true
+    }
   },
   "engines": {
     "node": ">=22.12"

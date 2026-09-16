@@ -1,6 +1,6 @@
 {
   "name": "create-sp",
-  "version": "0.0.4",
+  "version": "0.0.8",
   "description": "Create a framework-agnostic SPVE SharePoint application",
   "keywords": [
     "sharepoint",
@@ -11,10 +11,14 @@
   ],
   "license": "MIT",
   "bin": {
-    "create-sp": "./bin/index.mjs"
+    "create-sp": "bin/index.mjs"
+  },
+  "exports": {
+    "./scaffold": "./scaffold.mjs"
   },
   "files": [
     "bin",
+    "scaffold.mjs",
     "templates"
   ],
   "type": "module",

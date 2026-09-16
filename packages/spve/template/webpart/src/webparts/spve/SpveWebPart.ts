@@ -1,13 +1,13 @@
 import { Version } from '@microsoft/sp-core-library'
 /* __SPVE_PROPERTY_PANE_IMPORTS__ */
-import { BaseClientSideWebPart } from '@microsoft/sp-webpart-base'
+import { BaseClientSideWebPart, type WebPartContext } from '@microsoft/sp-webpart-base'
 import { type SPFI, SPFx, spfi } from '@pnp/sp'
 import '@pnp/sp/presets/all'
 import type { SpveApp, SpveInstance } from 'spve'
 
 declare const __SPVE_DEV__: boolean
 
-type Services = { sp: SPFI }
+type Services = { sp: SPFI; context: WebPartContext }
 type App = SpveApp<ISpveWebPartProps, Services>
 type Instance = SpveInstance<ISpveWebPartProps>
 let modulePromise: Promise<App> | undefined
@@ -60,7 +60,7 @@ export default class SpveWebPart extends BaseClientSideWebPart<ISpveWebPartProps
       const app = module.mount({
         element,
         props: this.properties,
-        services: { sp: this.sharepoint },
+        services: { sp: this.sharepoint, context: this.context },
       })
       if (version !== this.renderVersion) {
         app.unmount()

@@ -3,23 +3,18 @@
 import * as prompts from '@clack/prompts'
 import { spawn } from 'node:child_process'
 import { randomUUID } from 'node:crypto'
-import {
-  cpSync,
-  existsSync,
-  mkdirSync,
-  readdirSync,
-  readFileSync,
-  renameSync,
-  statSync,
-  writeFileSync,
-} from 'node:fs'
+import { existsSync, mkdirSync, readdirSync, writeFileSync } from 'node:fs'
 import { fileURLToPath } from 'node:url'
 import { styleText } from 'node:util'
 import os from 'node:os'
 import path from 'node:path'
+import {
+  copyTemplateScaffold,
+  createTemplatePackageJson,
+  DEFAULT_SPVE_SPECIFIER,
+} from '../scaffold.mjs'
 
 const packageRoot = fileURLToPath(new URL('..', import.meta.url))
-const templatesRoot = path.join(packageRoot, 'templates')
 let activeSharePointPreparation
 let vitePlusExecutable
 const frameworkChoices = [
@@ -428,7 +423,7 @@ function startSharePointPreparation() {
   const npmArgs = [
     'exec',
     '--yes',
-    '--package=@spve/core@0.0.4',
+    '--package=@spve/core@0.0.7',
     '--',
     'spve',
     'prepare-toolchain',
@@ -645,6 +640,13 @@ function technicalName(value) {
     .toLowerCase()
 }
 
+function webpartAlias(name) {
+  return `${name
+    .split('-')
+    .map((part) => part[0].toUpperCase() + part.slice(1))
+    .join('')}WebPart`
+}
+
 async function resolveOptions(args) {
   let target = args.target ? normalizeTarget(args.target) : undefined
   let title = args.title
@@ -746,7 +748,7 @@ async function resolveOptions(args) {
       siteUrl: args.siteUrl,
       tenantId: args.tenantId,
       clientId: args.clientId,
-      spve: args.spve ?? 'npm:@spve/core@^0.0.4',
+      spve: args.spve ?? DEFAULT_SPVE_SPECIFIER,
       install: args.install ?? false,
     }
   }
@@ -989,54 +991,9 @@ async function resolveOptions(args) {
     siteUrl: draft.siteUrl,
     tenantId: draft.configureEntra ? draft.tenantId : undefined,
     clientId: draft.configureEntra ? draft.clientId : undefined,
-    spve: args.spve ?? 'npm:@spve/core@^0.0.4',
+    spve: args.spve ?? DEFAULT_SPVE_SPECIFIER,
     install: draft.install,
   }
-}
-
-function renameScaffoldFiles(directory) {
-  for (const entry of readdirSync(directory)) {
-    const source = path.join(directory, entry)
-    const targetName = entry.startsWith('_') ? `.${entry.slice(1)}` : entry
-    const target = path.join(directory, targetName)
-    if (target !== source) renameSync(source, target)
-    if (statSync(target).isDirectory()) renameScaffoldFiles(target)
-  }
-}
-
-function replaceTokens(directory, tokens) {
-  for (const entry of readdirSync(directory)) {
-    const file = path.join(directory, entry)
-    if (statSync(file).isDirectory()) {
-      replaceTokens(file, tokens)
-      continue
-    }
-
-    let contents = readFileSync(file, 'utf8')
-    for (const [token, value] of Object.entries(tokens)) {
-      contents = contents.replaceAll(`__${token}__`, value)
-    }
-    writeFileSync(file, contents)
-  }
-}
-
-function escapeHtml(value) {
-  return value
-    .replaceAll('&', '&amp;')
-    .replaceAll('<', '&lt;')
-    .replaceAll('>', '&gt;')
-    .replaceAll('"', '&quot;')
-    .replaceAll("'", '&#39;')
-}
-
-function quoteJavaScript(value) {
-  const escaped = value
-    .replaceAll('\\', '\\\\')
-    .replaceAll('`', '\\`')
-    .replaceAll('${', '\\${')
-    .replaceAll('\r', '\\r')
-    .replaceAll('\n', '\\n')
-  return `\`${escaped}\``
 }
 
 function quoteTypeScript(value) {
@@ -1052,125 +1009,8 @@ function quoteTypeScript(value) {
     .replaceAll('\u2029', '\\u2029')}${quote}`
 }
 
-function frameworkDependencies(template) {
-  if (template === 'vue-ts') {
-    return {
-      dependencies: { vue: '^3.5.41' },
-      devDependencies: {
-        '@vitejs/plugin-vue': '^6.0.8',
-        '@vue/tsconfig': '^0.9.1',
-        'vue-tsc': '^3.3.9',
-      },
-    }
-  }
-
-  if (template === 'react-ts') {
-    return {
-      dependencies: {
-        react: '^19.2.8',
-        'react-dom': '^19.2.8',
-      },
-      devDependencies: {
-        '@types/react': '^19.2.18',
-        '@types/react-dom': '^19.2.4',
-        '@vitejs/plugin-react': '^6.0.5',
-      },
-    }
-  }
-
-  if (template === 'preact-ts') {
-    return {
-      dependencies: { preact: '^10.29.7' },
-      devDependencies: { '@preact/preset-vite': '^2.10.6' },
-    }
-  }
-
-  if (template === 'lit-ts') {
-    return {
-      dependencies: { lit: '^3.3.3' },
-      devDependencies: {},
-    }
-  }
-
-  if (template === 'svelte-ts') {
-    return {
-      dependencies: { svelte: '^5.56.8' },
-      devDependencies: {
-        '@sveltejs/vite-plugin-svelte': '^7.2.0',
-        '@tsconfig/svelte': '^5.0.8',
-        'svelte-check': '^4.7.3',
-      },
-    }
-  }
-
-  if (template === 'solid-ts') {
-    return {
-      dependencies: { 'solid-js': '^1.9.14' },
-      devDependencies: { 'vite-plugin-solid': '^2.11.13' },
-    }
-  }
-
-  if (template === 'qwik-ts') {
-    return {
-      dependencies: { '@builder.io/qwik': '^1.20.0' },
-      devDependencies: {},
-    }
-  }
-
-  return { dependencies: {}, devDependencies: {} }
-}
-
-function sortKeys(value) {
-  return Object.fromEntries(
-    Object.entries(value).sort(([left], [right]) => left.localeCompare(right)),
-  )
-}
-
 function writePackageJson(directory, options) {
-  const framework = frameworkDependencies(options.template)
-  const packageJson = {
-    name: options.packageName,
-    version: '0.0.1',
-    private: true,
-    type: 'module',
-    scripts: {
-      dev: 'vp dev',
-      build: 'vp build',
-      check: 'vp check',
-      postinstall: 'spve prepare',
-    },
-    dependencies: sortKeys({
-      '@azure/msal-browser': '^2.38.2',
-      '@pnp/sp': '^3.26.0',
-      spve: options.spve,
-      ...framework.dependencies,
-    }),
-    devDependencies: sortKeys({
-      '@types/node': '^24.13.3',
-      typescript: '~6.0.2',
-      vite: 'npm:@voidzero-dev/vite-plus-core@0.2.8',
-      'vite-plus': '^0.2.8',
-      ...framework.devDependencies,
-    }),
-    overrides: {
-      vite: 'npm:@voidzero-dev/vite-plus-core@0.2.8',
-    },
-    devEngines: {
-      packageManager: {
-        name: 'pnpm',
-        version: '11.20.0',
-        onFail: 'download',
-      },
-      runtime: {
-        name: 'node',
-        version: '24',
-        onFail: 'download',
-      },
-    },
-    engines: {
-      node: '>=24 <25',
-    },
-  }
+  const packageJson = createTemplatePackageJson(options)
   writeFileSync(path.join(directory, 'package.json'), `${JSON.stringify(packageJson, null, 2)}\n`)
 }
 
@@ -1196,6 +1036,7 @@ export default {
     spfxPort: ${options.spfxPort},
   },
   webpart: {
+    alias: ${quoteTypeScript(webpartAlias(options.name))},
     icon: 'Page',
     group: 'Advanced',
     supportedHosts: ['SharePointWebPart'],
@@ -1238,16 +1079,7 @@ function writeEnvironment(directory, options) {
 function createProject(options) {
   const directory = path.resolve(options.target)
   mkdirSync(directory, { recursive: true })
-  cpSync(path.join(templatesRoot, 'base'), directory, { recursive: true })
-  cpSync(path.join(templatesRoot, options.template), directory, { recursive: true })
-  renameScaffoldFiles(directory)
-  replaceTokens(directory, {
-    PACKAGE_NAME: options.packageName,
-    TITLE: options.title,
-    TITLE_HTML: escapeHtml(options.title),
-    TITLE_JS: quoteJavaScript(options.title),
-    DESCRIPTION: options.description,
-  })
+  copyTemplateScaffold(directory, options)
   writePackageJson(directory, options)
   writeSpveConfig(directory, options)
   writeEnvironment(directory, options)

@@ -150,11 +150,13 @@ export interface SpveConfig {
     vitePort: number
     spfxPort: number
   }
-  webpart?: {
+  webpart: {
+    alias: string
     icon?: string
     group?: string
     groupId?: string
     supportedHosts?: readonly SpveSupportedHost[]
+    supportsFullBleed?: boolean
     supportsThemeVariants?: boolean
     requiresCustomScript?: boolean
     properties?: Readonly<Record<string, SpveProperty>>
