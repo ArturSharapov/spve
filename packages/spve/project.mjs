@@ -129,10 +129,10 @@ function validateOptions(name, property, control) {
 
 function propertyType(name, property) {
   const controls = {
-    string: new Set(['text', 'dropdown', 'choiceGroup']),
-    number: new Set(['slider', 'dropdown', 'choiceGroup']),
-    boolean: new Set(['toggle', 'checkbox']),
-    json: new Set(['none']),
+    string: new Set(['custom', 'text', 'dropdown', 'choiceGroup']),
+    number: new Set(['custom', 'slider', 'dropdown', 'choiceGroup']),
+    boolean: new Set(['custom', 'toggle', 'checkbox']),
+    json: new Set(['custom', 'none']),
   }
   if (!Object.hasOwn(controls, property.type)) {
     throw new Error(`SPVE: property ${JSON.stringify(name)} has unsupported type ${property.type}`)
@@ -143,6 +143,12 @@ function propertyType(name, property) {
     throw new Error(
       `SPVE: control ${JSON.stringify(control)} is not valid for ${property.type} property ${JSON.stringify(name)}`,
     )
+  }
+  if (
+    control === 'custom' &&
+    (typeof property.control.editor !== 'string' || !property.control.editor.trim())
+  ) {
+    throw new Error(`SPVE: custom property ${JSON.stringify(name)} needs an editor name`)
   }
   if (property.default !== undefined) {
     const valid =
@@ -302,7 +308,11 @@ function propertyPaneSource(properties) {
     const settings = property.control ?? {}
     if (control === 'none') continue
 
-    if (control === 'toggle') {
+    if (control === 'custom') {
+      fields.push(
+        `this.editorField(${JSON.stringify(name)}, ${JSON.stringify(settings.editor)}, ${Boolean(settings.disabled)})`,
+      )
+    } else if (control === 'toggle') {
       imports.add('PropertyPaneToggle')
       fields.push(
         `PropertyPaneToggle(${JSON.stringify(name)}, ${JSON.stringify({

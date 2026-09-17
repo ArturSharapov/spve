@@ -43,3 +43,10 @@ export interface SpvePlugin {
 }
 
 export function initializeSP(sharepoint: SPFI): void
+
+export interface SpveEditorProps<Value, Props extends object = AppProps> {
+  value: Value
+  onChange(value: Value, valid?: boolean): void
+  disabled: boolean
+  properties: Readonly<Props>
+}
