@@ -4,6 +4,7 @@ import {
   mkdirSync,
   readFileSync,
   readdirSync,
+  realpathSync,
   renameSync,
   rmSync,
   statSync,
@@ -267,6 +268,23 @@ export function normalizeConfig(config) {
       throw new Error(`SPVE: property ${JSON.stringify(name)} must be an object`)
     }
     propertyType(name, property)
+  }
+
+  if (config.webpart.preconfiguredEntries !== undefined) {
+    if (
+      !Array.isArray(config.webpart.preconfiguredEntries) ||
+      !config.webpart.preconfiguredEntries.length
+    )
+      throw new Error('SPVE: preconfiguredEntries must contain an entry')
+    for (const entry of config.webpart.preconfiguredEntries) {
+      if (!entry.title || (typeof entry.title === 'object' && !entry.title.default))
+        throw new Error('SPVE: every preconfigured entry needs a title')
+      for (const [name, value] of Object.entries(entry.properties ?? {})) {
+        if (!Object.hasOwn(properties, name))
+          throw new Error(`SPVE: preset property ${name} is not declared`)
+        propertyType(name, { ...properties[name], default: value })
+      }
+    }
   }
 
   const pages = config.webpart.pane?.pages
@@ -557,6 +575,27 @@ function generatedFiles(config) {
       property.default,
     ]),
   )
+  if (normalized.webpart.preconfiguredEntries) {
+    manifest.preconfiguredEntries = normalized.webpart.preconfiguredEntries.map((preset) => ({
+      ...entry,
+      title: typeof preset.title === 'string' ? { default: preset.title } : preset.title,
+      description:
+        preset.description === undefined
+          ? entry.description
+          : typeof preset.description === 'string'
+            ? { default: preset.description }
+            : preset.description,
+      group:
+        preset.group === undefined
+          ? entry.group
+          : typeof preset.group === 'string'
+            ? { default: preset.group }
+            : preset.group,
+      groupId: preset.groupId ?? entry.groupId,
+      officeFabricIconFontName: preset.icon ?? entry.officeFabricIconFontName,
+      properties: { ...entry.properties, ...preset.properties },
+    }))
+  }
   files.set(manifestName, json(manifest))
 
   const buildName = 'config/config.json'
@@ -584,6 +623,55 @@ function generatedFiles(config) {
   solution.solution.skipFeatureDeployment = normalized.solution.skipFeatureDeployment
   solution.solution.metadata.shortDescription = entry.description
   solution.solution.metadata.longDescription = entry.description
+  if (normalized.solution.developer)
+    solution.solution.developer = {
+      ...solution.solution.developer,
+      ...normalized.solution.developer,
+    }
+  const metadata = normalized.solution.metadata ?? {}
+  for (const key of ['shortDescription', 'longDescription']) {
+    const value = metadata[key]
+    if (value !== undefined) {
+      const localized = typeof value === 'string' ? { default: value } : value
+      if (
+        !localized?.default ||
+        Object.values(localized).some((text) => typeof text !== 'string' || !text.trim())
+      )
+        throw new Error(`SPVE: solution.metadata.${key} needs nonempty localized text`)
+      solution.solution.metadata[key] = localized
+    } else if (!entry.description.default) delete solution.solution.metadata[key]
+  }
+  for (const key of ['screenshotPaths', 'videoUrl', 'categories']) {
+    if (metadata[key] !== undefined) solution.solution.metadata[key] = metadata[key]
+  }
+  if (metadata.screenshotPaths?.length > 5)
+    throw new Error('SPVE: at most five solution screenshots are supported')
+  const categories = [
+    'Accounting + Finance',
+    'Collaboration',
+    'Content management',
+    'CRM',
+    'Data + analytics',
+    'File managers',
+    'IT/admin',
+    'Legal + HR',
+    'News + weather',
+    'Productivity',
+    'Project management',
+    'Reference',
+    'Sales + marketing',
+    'Site Design',
+    'Social',
+    'Workflow & Process Management',
+  ]
+  if (
+    metadata.categories &&
+    (metadata.categories.length > 3 ||
+      metadata.categories.some((value) => !categories.includes(value)))
+  )
+    throw new Error('SPVE: solution metadata needs at most three supported SharePoint categories')
+  if (normalized.solution.iconPath) solution.solution.iconPath = normalized.solution.iconPath
+  if (normalized.solution.assets) solution.solution.features[0].assets = normalized.solution.assets
   solution.solution.features[0].id = normalized.ids.feature
   solution.solution.features[0].title = `${entry.title.default} feature`
   solution.solution.features[0].description = `Activates the ${entry.title.default} solution.`
@@ -639,7 +727,7 @@ function fingerprint(files) {
 }
 
 function writeIfChanged(file, contents) {
-  if (existsSync(file) && readFileSync(file, 'utf8') === contents) return false
+  if (existsSync(file) && readFileSync(file).equals(Buffer.from(contents))) return false
   mkdirSync(path.dirname(file), { recursive: true })
   const temporary = `${file}.tmp-${process.pid}-${randomUUID()}`
   try {
@@ -658,6 +746,7 @@ export async function prepareWebpart(root, config) {
   const properties = { ...normalized.webpart.properties }
   const parsers = Object.entries(properties).filter(([, property]) => property.parser)
   let parserSource = ''
+  let parserFunctions = {}
   const parserInputs = []
   if (parsers.length) {
     const imports = parsers.map(
@@ -699,6 +788,7 @@ export async function prepareWebpart(root, config) {
     const loaded = await import(
       `data:text/javascript;base64,${Buffer.from(output.code).toString('base64')}`
     )
+    parserFunctions = loaded.default
     for (const [name, property] of parsers) {
       if (typeof loaded.default[name] !== 'function')
         throw new Error(`SPVE: parser for ${name} is not a function`)
@@ -711,8 +801,50 @@ export async function prepareWebpart(root, config) {
   }
   const generated = generatedFiles({
     ...normalized,
-    webpart: { ...normalized.webpart, properties },
+    webpart: {
+      ...normalized.webpart,
+      properties,
+      preconfiguredEntries: normalized.webpart.preconfiguredEntries?.map((entry) => ({
+        ...entry,
+        properties: Object.fromEntries(
+          Object.entries(entry.properties ?? {}).map(([name, value]) => [
+            name,
+            parserFunctions[name] ? parseProperty(name, value, parserFunctions[name]) : value,
+          ]),
+        ),
+      })),
+    },
   })
+  const assetInputs = []
+  const assets = new Map()
+  if (normalized.solution.iconPath)
+    assets.set(normalized.solution.iconPath, normalized.solution.iconPath)
+  for (const screenshot of normalized.solution.metadata?.screenshotPaths ?? []) {
+    if (!/^https?:\/\//.test(screenshot)) assets.set(screenshot, screenshot)
+  }
+  for (const kind of ['elementManifests', 'elementFiles', 'upgradeActions']) {
+    for (const file of normalized.solution.assets?.[kind] ?? []) assets.set(`assets/${file}`, file)
+  }
+  for (const [relative, declared] of assets) {
+    if (
+      typeof declared !== 'string' ||
+      !declared ||
+      path.isAbsolute(declared) ||
+      declared.includes('\\') ||
+      declared.split('/').some((part) => part === '..' || part === '.') ||
+      declared.includes(':')
+    )
+      throw new Error(`SPVE: invalid package asset path ${declared}`)
+    const source = path.join(root, 'sharepoint', relative)
+    if (!existsSync(source) || !statSync(source).isFile())
+      throw new Error(`SPVE: missing package asset sharepoint/${relative}`)
+    const sourceRoot = realpathSync(path.join(root, 'sharepoint')) + path.sep
+    if (!realpathSync(source).startsWith(sourceRoot))
+      throw new Error(`SPVE: package asset ${relative} is outside sharepoint/`)
+    generated.files.set(`webpart/sharepoint/${relative}`, readFileSync(source))
+    assetInputs.push(source)
+  }
+  if (assetInputs.length) generated.files.set('asset-inputs.json', json(assetInputs))
   if (normalized.host) {
     const entry = normalized.host.entry
     if (
@@ -760,7 +892,7 @@ export async function prepareWebpart(root, config) {
 
   const complete = [...generated.files].every(([relative, contents]) => {
     const file = path.join(generatedRoot, relative)
-    return existsSync(file) && readFileSync(file, 'utf8') === contents
+    return existsSync(file) && readFileSync(file).equals(Buffer.from(contents))
   })
   if (previous.version === stateVersion && previous.scaffold === scaffold && complete) {
     return path.join(generatedRoot, 'webpart')

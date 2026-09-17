@@ -383,3 +383,48 @@ Migration code is compiled into the native host so it runs before the applicatio
 loads. Return synchronously, without network calls. Configured property parsers
 then validate values before the application receives them. SPVE adds no migration
 registry, and hosts without an override retain data version 1.0.
+
+## Product packaging
+
+Optional `solution.developer` fields describe the publisher. `solution.metadata`
+accepts short and long descriptions, up to five screenshot paths, a video URL,
+and up to three native SharePoint categories. Strings or locale maps work for
+descriptions. Missing descriptions are omitted instead of emitted as invalid
+empty localized strings.
+
+Set `solution.iconPath` to a path inside the project's `sharepoint/` directory.
+Local screenshot paths use that directory too; external HTTP(S) screenshot URLs
+remain URLs. Feature assets use the native `sharepoint/assets/` directory:
+
+```ts
+solution: {
+  iconPath: 'images/icon.png',
+  developer: { name: 'Example team', websiteUrl: 'https://example.com' },
+  metadata: { shortDescription: 'Choose and display saved views' },
+  skipFeatureDeployment: false,
+  assets: {
+    elementManifests: ['elements.xml'],
+    elementFiles: ['schema.xml'],
+  },
+},
+```
+
+SPVE validates the files, copies them without changing their bytes, watches them
+in development, and removes stale generated copies. Feature assets provision
+lists when the app is installed and activated on a site. Tenant-wide availability
+through `skipFeatureDeployment` does not provision lists on each site. Runtime
+provisioning must be an explicit application/admin action.
+
+Use `webpart.preconfiguredEntries` for several initial configurations of the same
+component. Each entry needs a title and can override declared property defaults:
+
+```ts
+preconfiguredEntries: [
+  { title: 'Compact', properties: { columns: 1 } },
+  { title: 'Wide', properties: { columns: 3 } },
+],
+```
+
+SPVE validates each preset with the property's existing rules and optional parser.
+Identifiers and bundle paths remain generated. Domain isolation is not exposed;
+Microsoft retired isolated web parts on April 2, 2026.

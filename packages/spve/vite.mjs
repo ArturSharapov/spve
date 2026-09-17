@@ -67,6 +67,7 @@ function spvePlugin() {
   let packageWebpartOnClose = false
   let parserFile
   let parserInputs = []
+  let assetInputs = []
   let parserProperties = {}
   let standaloneHost = {}
   let hostDirectory
@@ -144,6 +145,9 @@ function spvePlugin() {
         ? path.dirname(path.resolve(root, normalized.host.entry))
         : undefined
       parserProperties = normalized.webpart.properties
+      assetInputs = existsSync(path.join(root, '.spve/asset-inputs.json'))
+        ? JSON.parse(readFileSync(path.join(root, '.spve/asset-inputs.json'), 'utf8'))
+        : []
       parserFile = path.join(root, '.spve/parsers.mjs')
       parserInputs = existsSync(parserFile)
         ? JSON.parse(readFileSync(path.join(root, '.spve/parser-inputs.json'), 'utf8'))
@@ -202,6 +206,7 @@ function spvePlugin() {
       server.watcher.add([
         projectConfigFile,
         ...parserInputs,
+        ...assetInputs,
         ...(hostDirectory ? [hostDirectory] : []),
       ])
       server.watcher.on('all', (event, file) => {
@@ -209,6 +214,7 @@ function spvePlugin() {
         if (
           path.resolve(file) === projectConfigFile ||
           parserInputs.includes(path.resolve(file)) ||
+          assetInputs.includes(path.resolve(file)) ||
           (hostDirectory && path.resolve(file).startsWith(hostDirectory + path.sep))
         )
           void server.restart()
