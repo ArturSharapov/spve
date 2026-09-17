@@ -183,6 +183,10 @@ export interface SpveConfig {
       }[]
     }
   }
+  host?: {
+    entry: string
+    dependencies?: Readonly<Record<string, string>>
+  }
   solution?: {
     includeClientSideAssets?: boolean
     skipFeatureDeployment?: boolean

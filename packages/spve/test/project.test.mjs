@@ -1,5 +1,14 @@
 import assert from 'node:assert/strict'
-import { mkdtempSync, readFileSync, rmSync, statSync, utimesSync, writeFileSync } from 'node:fs'
+import {
+  mkdirSync,
+  existsSync,
+  mkdtempSync,
+  readFileSync,
+  rmSync,
+  statSync,
+  utimesSync,
+  writeFileSync,
+} from 'node:fs'
 import { tmpdir } from 'node:os'
 import path from 'node:path'
 import { describe, expect, test } from 'vite-plus/test'
@@ -302,6 +311,40 @@ test('parser defaults are typed, validated, isolated, and refreshed with importe
     config.webpart.properties.views.default = 1
     await expect(prepareWebpart(root, config)).rejects.toThrow(
       /property views: Expected views array/,
+    )
+  } finally {
+    rmSync(root, { recursive: true, force: true })
+  }
+})
+
+test('stages project host sources and repairs or removes generated copies', async () => {
+  const root = mkdtempSync(path.join(tmpdir(), 'spve-host-'))
+  const config = projectConfig()
+  config.host = { entry: './host/WebPart.ts' }
+  mkdirSync(path.join(root, 'host'))
+  writeFileSync(
+    path.join(root, 'host/WebPart.ts'),
+    "import Base from 'spve/host'; export default class WebPart extends Base {}",
+  )
+  writeFileSync(path.join(root, 'host/helper.ts'), 'export const value = 1')
+  try {
+    await prepareWebpart(root, config)
+    const staged = path.join(root, '.spve/webpart/src/host')
+    expect(readFileSync(path.join(staged, 'WebPart.ts'), 'utf8')).toContain('extends Base')
+    const compiler = JSON.parse(
+      readFileSync(path.join(root, '.spve/webpart/tsconfig.json'), 'utf8'),
+    )
+    expect(compiler.compilerOptions.paths['spve/host']).toEqual([
+      './src/webparts/spve/SpveWebPartBase',
+    ])
+    rmSync(path.join(root, 'host/helper.ts'))
+    await prepareWebpart(root, config)
+    expect(existsSync(path.join(staged, 'helper.ts'))).toBe(false)
+    delete config.host
+    await prepareWebpart(root, config)
+    expect(existsSync(path.join(staged, 'WebPart.ts'))).toBe(false)
+    expect(existsSync(path.join(root, '.spve/webpart/src/webparts/spve/SpveWebPartBase.ts'))).toBe(
+      false,
     )
   } finally {
     rmSync(root, { recursive: true, force: true })

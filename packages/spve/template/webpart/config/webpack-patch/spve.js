@@ -1,7 +1,17 @@
 const webpack = require('webpack')
 const serve = require('../serve.json')
+const spve = require('../spve.json')
+const path = require('path')
 
 module.exports = function applySpveWebpackPatch(webpackConfig) {
+  if (spve.host) {
+    webpackConfig.resolve ||= {}
+    webpackConfig.resolve.alias ||= {}
+    webpackConfig.resolve.alias['spve/host$'] = path.resolve(
+      __dirname,
+      '../../lib/webparts/spve/SpveWebPartBase.js',
+    )
+  }
   const isDevelopment = process.env.SPVE_PRODUCTION !== '1'
   const protocol = serve.https ? 'https' : 'http'
   const host = serve.ipAddress || 'localhost'

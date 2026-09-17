@@ -68,6 +68,7 @@ function spvePlugin() {
   let parserFile
   let parserInputs = []
   let parserProperties = {}
+  let hostDirectory
 
   return {
     name: 'spve',
@@ -132,6 +133,9 @@ function spvePlugin() {
         ]),
       )
       webpart = await prepareWebpart(root, settings)
+      hostDirectory = normalized.host
+        ? path.dirname(path.resolve(root, normalized.host.entry))
+        : undefined
       parserProperties = normalized.webpart.properties
       parserFile = path.join(root, '.spve/parsers.mjs')
       parserInputs = existsSync(parserFile)
@@ -188,9 +192,18 @@ function spvePlugin() {
     },
 
     configureServer(server) {
-      server.watcher.add([projectConfigFile, ...parserInputs])
-      server.watcher.on('change', (file) => {
-        if (path.resolve(file) === projectConfigFile || parserInputs.includes(path.resolve(file)))
+      server.watcher.add([
+        projectConfigFile,
+        ...parserInputs,
+        ...(hostDirectory ? [hostDirectory] : []),
+      ])
+      server.watcher.on('all', (event, file) => {
+        if (!['add', 'change', 'unlink'].includes(event)) return
+        if (
+          path.resolve(file) === projectConfigFile ||
+          parserInputs.includes(path.resolve(file)) ||
+          (hostDirectory && path.resolve(file).startsWith(hostDirectory + path.sep))
+        )
           void server.restart()
       })
 
