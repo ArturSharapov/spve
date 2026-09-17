@@ -59,7 +59,18 @@ test.each(['absent', 'present', 'broken'])(
         await expect(resolveConfig(options, 'serve')).rejects.toThrow(/client/)
       } else {
         const config = await resolveConfig(options, 'serve')
+        expect(config.optimizeDeps.exclude).toEqual(
+          expect.arrayContaining(['sp', 'spve', '@spve/core']),
+        )
         expect(config.optimizeDeps.include).toContain('consumer-dependency')
+        await expect(
+          resolveConfig({ ...options, optimizeDeps: { include: ['spve/vanilla'] } }, 'serve'),
+        ).rejects.toThrow(/must share/)
+        const nested = await resolveConfig(
+          { ...options, optimizeDeps: { include: ['spve/react > some-cjs'] } },
+          'serve',
+        )
+        expect(nested.optimizeDeps.include).toContain('spve/react > some-cjs')
         expect(config.optimizeDeps.include.includes('react-dom/client')).toBe(react === 'present')
       }
     } finally {
