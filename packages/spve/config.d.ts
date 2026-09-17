@@ -174,6 +174,13 @@ export interface SpveConfig {
     supportsThemeVariants?: boolean
     requiresCustomScript?: boolean
     properties?: Readonly<Record<string, SpveProperty>>
+    pane?: {
+      reactive?: boolean
+      pages?: readonly {
+        description?: string
+        groups: readonly { name: string; fields: readonly string[] }[]
+      }[]
+    }
   }
   solution?: {
     includeClientSideAssets?: boolean

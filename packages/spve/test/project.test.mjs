@@ -235,3 +235,32 @@ test('generates custom editor fields without changing the saved property shape',
     rmSync(root, { recursive: true, force: true })
   }
 })
+
+test('orders native pane fields and rejects omitted or duplicate fields', () => {
+  const root = mkdtempSync(path.join(tmpdir(), 'spve-pane-'))
+  const config = projectConfig()
+  config.webpart.properties = { title: { type: 'string' }, enabled: { type: 'boolean' } }
+  config.webpart.pane = {
+    reactive: false,
+    pages: [
+      { description: 'Settings', groups: [{ name: 'Display', fields: ['enabled', 'title'] }] },
+    ],
+  }
+  try {
+    prepareWebpart(root, config)
+    const host = readFileSync(
+      path.join(root, '.spve/webpart/src/webparts/spve/SpveWebPart.ts'),
+      'utf8',
+    )
+    expect(host.indexOf('PropertyPaneToggle("enabled"')).toBeLessThan(
+      host.indexOf('PropertyPaneTextField("title"'),
+    )
+    expect(host).toMatch(/disableReactivePropertyChanges\(\): boolean\s*\{\s*return true/)
+    config.webpart.pane.pages[0].groups[0].fields = ['title']
+    expect(() => normalizeConfig(config)).toThrow(/omits fields: enabled/)
+    config.webpart.pane.pages[0].groups[0].fields = ['title', 'title']
+    expect(() => normalizeConfig(config)).toThrow(/repeated/)
+  } finally {
+    rmSync(root, { recursive: true, force: true })
+  }
+})
