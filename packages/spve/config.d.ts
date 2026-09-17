@@ -180,6 +180,14 @@ export interface SpveConfig {
     supportsThemeVariants?: boolean
     requiresCustomScript?: boolean
     properties?: Readonly<Record<string, SpveProperty>>
+    preconfiguredEntries?: readonly {
+      title: SpveLocalizedText
+      description?: SpveLocalizedText
+      group?: SpveLocalizedText
+      groupId?: string
+      icon?: string
+      properties?: Readonly<Record<string, SpveJsonValue>>
+    }[]
     pane?: {
       reactive?: boolean
       pages?: readonly {
@@ -193,6 +201,27 @@ export interface SpveConfig {
     dependencies?: Readonly<Record<string, string>>
   }
   solution?: {
+    developer?: {
+      name?: string
+      websiteUrl?: string
+      privacyUrl?: string
+      termsOfUseUrl?: string
+      mpnId?: string
+    }
+    metadata?: {
+      shortDescription?: SpveLocalizedText
+      longDescription?: SpveLocalizedText
+      screenshotPaths?: readonly string[]
+      videoUrl?: string
+      categories?: readonly string[]
+    }
+    iconPath?: string
+    assets?: {
+      elementManifests?: readonly string[]
+      elementFiles?: readonly string[]
+      upgradeActions?: readonly string[]
+    }
+
     includeClientSideAssets?: boolean
     skipFeatureDeployment?: boolean
     permissions?: readonly {

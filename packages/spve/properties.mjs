@@ -17,6 +17,10 @@ export function isJsonValue(value, ancestors = new Set()) {
 export function parseProperty(name, value, parser) {
   try {
     const parsed = parser(structuredClone(value))
+    if (parsed && typeof parsed.then === 'function') {
+      Promise.resolve(parsed).catch(() => {})
+      throw new Error('parser must synchronously return a JSON-compatible value')
+    }
     if (!isJsonValue(parsed))
       throw new Error('parser must synchronously return a JSON-compatible value')
     return parsed

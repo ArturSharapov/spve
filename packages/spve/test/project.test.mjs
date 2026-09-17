@@ -350,3 +350,65 @@ test('stages project host sources and repairs or removes generated copies', asyn
     rmSync(root, { recursive: true, force: true })
   }
 })
+
+test('packages native metadata, binary assets, and validated presets with stale-file cleanup', async () => {
+  const root = mkdtempSync(path.join(tmpdir(), 'spve-package-'))
+  const config = projectConfig()
+  mkdirSync(path.join(root, 'sharepoint/assets'), { recursive: true })
+  const icon = Buffer.from([0x89, 0x50, 0x4e, 0x47, 0xff, 0, 0xfe])
+  writeFileSync(path.join(root, 'sharepoint/icon.png'), icon)
+  writeFileSync(
+    path.join(root, 'sharepoint/assets/elements.xml'),
+    '<Elements xmlns="http://schemas.microsoft.com/sharepoint/"/>',
+  )
+  config.solution = {
+    iconPath: 'icon.png',
+    developer: { name: 'Example' },
+    metadata: {
+      shortDescription: { default: 'Views', pl: 'Widoki' },
+      categories: ['Productivity'],
+    },
+    assets: { elementManifests: ['elements.xml'] },
+  }
+  config.webpart.preconfiguredEntries = [
+    { title: 'One column', properties: { columns: 1 } },
+    { title: { default: 'Three columns', pl: 'Trzy kolumny' }, properties: { columns: 3 } },
+  ]
+  try {
+    await prepareWebpart(root, config)
+    const output = path.join(root, '.spve/webpart')
+    expect(readFileSync(path.join(output, 'sharepoint/icon.png'))).toEqual(icon)
+    const solution = JSON.parse(
+      readFileSync(path.join(output, 'config/package-solution.json'), 'utf8'),
+    ).solution
+    expect(solution.id).toBe(config.ids.solution)
+    expect(solution.iconPath).toBe('icon.png')
+    expect(solution.metadata.shortDescription.pl).toBe('Widoki')
+    expect(solution.features[0].assets.elementManifests).toEqual(['elements.xml'])
+    const manifest = JSON.parse(
+      readFileSync(path.join(output, 'src/webparts/spve/SpveWebPart.manifest.json'), 'utf8'),
+    )
+    expect(manifest.preconfiguredEntries.map((entry) => entry.properties.columns)).toEqual([1, 3])
+    expect(manifest.preconfiguredEntries[0].properties.count).toBe(3)
+    expect(manifest.id).toBe(config.ids.component)
+    config.webpart.preconfiguredEntries[0].properties.columns = 4
+    await expect(prepareWebpart(root, config)).rejects.toThrow(/must be an option/)
+    config.webpart.preconfiguredEntries[0].properties.columns = 1
+    config.solution.iconPath = '../outside.png'
+    await expect(prepareWebpart(root, config)).rejects.toThrow(/invalid package asset path/)
+    delete config.solution.iconPath
+    delete config.solution.assets
+    delete config.solution.metadata
+    delete config.description
+    await prepareWebpart(root, config)
+    expect(existsSync(path.join(output, 'sharepoint/icon.png'))).toBe(false)
+    expect(existsSync(path.join(output, 'sharepoint/assets/elements.xml'))).toBe(false)
+    const updated = JSON.parse(
+      readFileSync(path.join(output, 'config/package-solution.json'), 'utf8'),
+    ).solution
+    expect(updated.metadata.shortDescription).toBeUndefined()
+    expect(updated.metadata.longDescription).toBeUndefined()
+  } finally {
+    rmSync(root, { recursive: true, force: true })
+  }
+})

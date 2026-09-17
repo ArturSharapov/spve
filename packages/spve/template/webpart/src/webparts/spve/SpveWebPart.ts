@@ -50,9 +50,8 @@ export default class SpveWebPart extends BaseClientSideWebPart<ISpveWebPartProps
   private sharepoint!: SPFI
   private label(value: Record<string, string>): string {
     const culture = this.context.pageContext.cultureInfo.currentUICultureName.toLowerCase()
-    const values = Object.fromEntries(
-      Object.entries(value).map(([key, text]) => [key.toLowerCase(), text]),
-    )
+    const values: Record<string, string> = Object.create(null)
+    for (const key of Object.keys(value)) values[key.toLowerCase()] = value[key]
     return values[culture] ?? values[culture.split('-')[0]] ?? value.default
   }
 
@@ -86,9 +85,9 @@ export default class SpveWebPart extends BaseClientSideWebPart<ISpveWebPartProps
 
   private propertySnapshot(): ISpveWebPartProps {
     const names: string[] = /* __SPVE_PROPERTY_NAMES__ */ []
-    return JSON.parse(
-      JSON.stringify(Object.fromEntries(names.map((name) => [name, this.properties[name]]))),
-    )
+    const properties: Record<string, unknown> = Object.create(null)
+    for (const name of names) properties[name] = this.properties[name]
+    return JSON.parse(JSON.stringify(properties))
   }
 
   protected get disableReactivePropertyChanges(): boolean {
@@ -216,7 +215,7 @@ export default class SpveWebPart extends BaseClientSideWebPart<ISpveWebPartProps
     if (this.mountingTimer) clearTimeout(this.mountingTimer)
     this.app?.unmount()
     this.app = undefined
-    for (const editor of this.editors.values()) editor.unmount()
+    this.editors.forEach((editor) => editor.unmount())
     this.editors.clear()
   }
 
