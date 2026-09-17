@@ -45,10 +45,8 @@ function createAuthenticatedClient(runtime, resource) {
 
   return {
     fetch: (url, _configuration, options) => fetchWithToken(url, options),
-    get: (url, _configuration, options) =>
-      fetchWithToken(url, { ...options, method: 'GET' }),
-    post: (url, _configuration, options) =>
-      fetchWithToken(url, { ...options, method: 'POST' }),
+    get: (url, _configuration, options) => fetchWithToken(url, { ...options, method: 'GET' }),
+    post: (url, _configuration, options) => fetchWithToken(url, { ...options, method: 'POST' }),
   }
 }
 
@@ -122,18 +120,17 @@ function createGraphClient(runtime) {
     let headers = {}
 
     const execute = async (method, body) => {
-      const response = await createAuthenticatedClient(runtime, 'https://graph.microsoft.com').fetch(
-        `https://graph.microsoft.com/${version}/${path.replace(/^\//, '')}`,
-        undefined,
-        {
-          method,
-          headers: {
-            ...headers,
-            ...(body === undefined ? {} : { 'Content-Type': 'application/json' }),
-          },
-          body: body === undefined ? undefined : JSON.stringify(body),
+      const response = await createAuthenticatedClient(
+        runtime,
+        'https://graph.microsoft.com',
+      ).fetch(`https://graph.microsoft.com/${version}/${path.replace(/^\//, '')}`, undefined, {
+        method,
+        headers: {
+          ...headers,
+          ...(body === undefined ? {} : { 'Content-Type': 'application/json' }),
         },
-      )
+        body: body === undefined ? undefined : JSON.stringify(body),
+      })
       if (!response.ok) throw new Error(`Microsoft Graph request failed with ${response.status}`)
       if (response.status === 204) return undefined
       return response.json()
@@ -269,8 +266,11 @@ function createStandaloneContext(sharepoint, element, options) {
 
   return new Proxy(context, {
     get(target, property, receiver) {
-      if (property in target || typeof property === 'symbol') return Reflect.get(target, property, receiver)
-      throw new Error(`SPVE: WebPartContext.${String(property)} is not implemented in standalone mode`)
+      if (property in target || typeof property === 'symbol')
+        return Reflect.get(target, property, receiver)
+      throw new Error(
+        `SPVE: WebPartContext.${String(property)} is not implemented in standalone mode`,
+      )
     },
   })
 }
@@ -288,7 +288,15 @@ export function withContext(options) {
               options?.standalone,
             ),
           }
-      return app.mount({ ...context, services })
+      const instance = app.mount({ ...context, services })
+      return {
+        setProps: (props) => instance.setProps(props),
+        update: (props, next) =>
+          instance.update
+            ? instance.update(props, { ...next, context: next.context ?? services.context })
+            : instance.setProps(props),
+        unmount: () => instance.unmount(),
+      }
     },
   })
 }

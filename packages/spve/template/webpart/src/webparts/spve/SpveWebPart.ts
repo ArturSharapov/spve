@@ -1,3 +1,4 @@
+import type { IReadonlyTheme } from '@microsoft/sp-component-base'
 import { Version } from '@microsoft/sp-core-library'
 /* __SPVE_PROPERTY_PANE_IMPORTS__ */
 import { BaseClientSideWebPart, type WebPartContext } from '@microsoft/sp-webpart-base'
@@ -8,13 +9,13 @@ import {
   type IPropertyPaneField,
   type IPropertyPaneCustomFieldProps,
 } from '@microsoft/sp-property-pane'
-import type { SpveApp, SpveInstance, SpveEditorProps } from 'spve'
+import type { SpveApp, SpveInstance, SpveEditorProps, SpveHostState } from 'spve'
 
 declare const __SPVE_DEV__: boolean
 
-type Services = { sp: SPFI; context: WebPartContext }
+type Services = { sp: SPFI; context: WebPartContext; host: SpveHostState }
 type App = SpveApp<ISpveWebPartProps, Services>
-type Instance = SpveInstance<ISpveWebPartProps>
+type Instance = SpveInstance<ISpveWebPartProps, Services>
 type EditorProps = SpveEditorProps<unknown, ISpveWebPartProps>
 type AppModule = {
   parseProperties?(props: ISpveWebPartProps): ISpveWebPartProps
@@ -47,6 +48,40 @@ export default class SpveWebPart extends BaseClientSideWebPart<ISpveWebPartProps
   private renderVersion = 0
   private app?: Instance
   private sharepoint!: SPFI
+  private label(value: Record<string, string>): string {
+    const culture = this.context.pageContext.cultureInfo.currentUICultureName.toLowerCase()
+    const values = Object.fromEntries(
+      Object.entries(value).map(([key, text]) => [key.toLowerCase(), text]),
+    )
+    return values[culture] ?? values[culture.split('-')[0]] ?? value.default
+  }
+
+  private theme?: SpveHostState['theme']
+
+  protected onThemeChanged(theme: IReadonlyTheme | undefined): void {
+    this.theme = theme
+      ? {
+          isInverted: theme.isInverted,
+          palette: { ...theme.palette },
+          semanticColors: { ...theme.semanticColors },
+        }
+      : undefined
+  }
+
+  private appServices(): Services {
+    const culture = this.context.pageContext.cultureInfo
+    return {
+      sp: this.sharepoint,
+      context: this.context,
+      host: {
+        theme: this.theme,
+        displayMode: this.displayMode === 2 ? 'edit' : 'read',
+        locale: culture.currentUICultureName,
+        direction: culture.isRightToLeft ? 'rtl' : 'ltr',
+      },
+    }
+  }
+
   private committedProps?: ISpveWebPartProps
 
   private propertySnapshot(): ISpveWebPartProps {
@@ -77,7 +112,7 @@ export default class SpveWebPart extends BaseClientSideWebPart<ISpveWebPartProps
   }
 
   private module?: AppModule
-  private editors = new Map<HTMLElement, SpveInstance<EditorProps>>()
+  private editors = new Map<HTMLElement, SpveInstance<EditorProps, Services>>()
 
   protected async loadPropertyPaneResources(): Promise<void> {
     this.module = await loadModule()
@@ -115,14 +150,15 @@ export default class SpveWebPart extends BaseClientSideWebPart<ISpveWebPartProps
             },
           }
           const instance = this.editors.get(element)
-          if (instance) instance.setProps(props)
+          if (instance?.update) instance.update(props, this.appServices())
+          else if (instance) instance.setProps(props)
           else
             this.editors.set(
               element,
               app.mount({
                 element,
                 props,
-                services: { sp: this.sharepoint, context: this.context },
+                services: this.appServices(),
               }),
             )
         },
@@ -150,7 +186,9 @@ export default class SpveWebPart extends BaseClientSideWebPart<ISpveWebPartProps
     if (this.mountingTimer) clearTimeout(this.mountingTimer)
     this.mountingTimer = setTimeout(async () => {
       if (this.app) {
-        this.app.setProps(this.module?.parseProperties?.(props) ?? props)
+        const next = this.module?.parseProperties?.(props) ?? props
+        if (this.app.update) this.app.update(next, this.appServices())
+        else this.app.setProps(next)
         return
       }
 
@@ -163,7 +201,7 @@ export default class SpveWebPart extends BaseClientSideWebPart<ISpveWebPartProps
       const app = module.default.mount({
         element,
         props: module.parseProperties?.(props) ?? props,
-        services: { sp: this.sharepoint, context: this.context },
+        services: this.appServices(),
       })
       if (version !== this.renderVersion) {
         app.unmount()

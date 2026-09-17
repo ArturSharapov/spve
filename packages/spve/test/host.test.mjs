@@ -25,7 +25,9 @@ const Host = exports.default
 test('custom editors retain their mount and dispose independently', () => {
   const host = new Host()
   host.properties = { views: [{ name: 'first' }] }
-  host.context = {}
+  host.context = {
+    pageContext: { cultureInfo: { currentUICultureName: 'en-US', isRightToLeft: false } },
+  }
   const instances = []
   const mount = vi.fn(() => {
     const instance = { setProps: vi.fn(), unmount: vi.fn() }
@@ -76,6 +78,44 @@ test('Apply mode keeps committed values during unrelated renders', async () => {
     host.render()
     await vi.runAllTimersAsync()
     expect(host.app.setProps).toHaveBeenLastCalledWith({ views: [{ name: 'restored by SPFx' }] })
+  } finally {
+    vi.useRealTimers()
+  }
+})
+
+test('theme hooks defer rendering and host updates carry props and services together', async () => {
+  vi.useFakeTimers()
+  try {
+    const host = new Host()
+    host.context = {
+      pageContext: { cultureInfo: { currentUICultureName: 'pl-PL', isRightToLeft: false } },
+    }
+    host.properties = { views: [] }
+    host.displayMode = 2
+    host.app = { update: vi.fn(), setProps: vi.fn(), unmount: vi.fn() }
+    host.onThemeChanged({
+      isInverted: true,
+      palette: { themePrimary: 'red' },
+      semanticColors: { bodyText: 'white' },
+    })
+    expect(host.app.update).not.toHaveBeenCalled()
+    expect(host.label({ default: 'Settings', pl: 'Ustawienia' })).toBe('Ustawienia')
+    expect(host.label({ default: 'Settings', 'pl-PL': 'Dokładne', pl: 'Ustawienia' })).toBe(
+      'Dokładne',
+    )
+    host.render()
+    await vi.runAllTimersAsync()
+    expect(host.app.setProps).not.toHaveBeenCalled()
+    expect(host.app.update).toHaveBeenCalledWith(
+      { views: [] },
+      expect.objectContaining({
+        host: expect.objectContaining({
+          displayMode: 'edit',
+          locale: 'pl-PL',
+          theme: expect.objectContaining({ isInverted: true }),
+        }),
+      }),
+    )
   } finally {
     vi.useRealTimers()
   }

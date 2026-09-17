@@ -251,7 +251,10 @@ export function normalizeConfig(config) {
     description: {
       type: 'string',
       label: 'Description',
-      default: config.description ?? '',
+      default:
+        typeof config.description === 'object'
+          ? config.description.default
+          : (config.description ?? ''),
       control: {
         type: 'text',
         multiline: true,
@@ -322,6 +325,22 @@ function readTemplate(directory = template, prefix = '', files = new Map()) {
   return files
 }
 
+function paneValue(value) {
+  if (value === undefined) return 'undefined'
+  if (Array.isArray(value)) return `[${value.map(paneValue).join(',')}]`
+  if (value && typeof value === 'object') {
+    if (
+      typeof value.default === 'string' &&
+      Object.values(value).every((entry) => typeof entry === 'string')
+    )
+      return `this.label(${JSON.stringify(value)})`
+    return `{${Object.entries(value)
+      .map(([name, entry]) => `${JSON.stringify(name)}:${paneValue(entry)}`)
+      .join(',')}}`
+  }
+  return JSON.stringify(value)
+}
+
 function propertyPaneSource(properties, pane) {
   const imports = new Set(['type IPropertyPaneConfiguration'])
   const fields = new Map()
@@ -341,7 +360,7 @@ function propertyPaneSource(properties, pane) {
       imports.add('PropertyPaneToggle')
       fields.set(
         name,
-        `PropertyPaneToggle(${JSON.stringify(name)}, ${JSON.stringify({
+        `PropertyPaneToggle(${JSON.stringify(name)}, ${paneValue({
           label,
           onText: settings.onText,
           offText: settings.offText,
@@ -356,7 +375,7 @@ function propertyPaneSource(properties, pane) {
       imports.add('PropertyPaneCheckbox')
       fields.set(
         name,
-        `PropertyPaneCheckbox(${JSON.stringify(name)}, ${JSON.stringify({
+        `PropertyPaneCheckbox(${JSON.stringify(name)}, ${paneValue({
           text: label,
           ariaLabel: settings.ariaLabel,
           disabled: settings.disabled,
@@ -366,7 +385,7 @@ function propertyPaneSource(properties, pane) {
       imports.add('PropertyPaneSlider')
       fields.set(
         name,
-        `PropertyPaneSlider(${JSON.stringify(name)}, ${JSON.stringify({
+        `PropertyPaneSlider(${JSON.stringify(name)}, ${paneValue({
           label,
           min: settings.min ?? 0,
           max: settings.max ?? 100,
@@ -394,7 +413,7 @@ function propertyPaneSource(properties, pane) {
       })
       fields.set(
         name,
-        `PropertyPaneDropdown(${JSON.stringify(name)}, ${JSON.stringify({
+        `PropertyPaneDropdown(${JSON.stringify(name)}, ${paneValue({
           label,
           options,
           disabled: settings.disabled,
@@ -423,13 +442,13 @@ function propertyPaneSource(properties, pane) {
       }))
       fields.set(
         name,
-        `PropertyPaneChoiceGroup(${JSON.stringify(name)}, ${JSON.stringify({ label, options })})`,
+        `PropertyPaneChoiceGroup(${JSON.stringify(name)}, ${paneValue({ label, options })})`,
       )
     } else {
       imports.add('PropertyPaneTextField')
       fields.set(
         name,
-        `PropertyPaneTextField(${JSON.stringify(name)}, ${JSON.stringify({
+        `PropertyPaneTextField(${JSON.stringify(name)}, ${paneValue({
           label,
           description: settings.description,
           multiline: settings.multiline,
@@ -463,10 +482,10 @@ function propertyPaneSource(properties, pane) {
     )
       .map(
         (page) =>
-          `{ header: ${JSON.stringify({ description: page.description })}, groups: [${page.groups
+          `{ header: ${paneValue({ description: page.description })}, groups: [${page.groups
             .map(
               (group) =>
-                `{ groupName: ${JSON.stringify(group.name)}, groupFields: [${group.fields.map((name) => fields.get(name)).join(',')}] }`,
+                `{ groupName: ${paneValue(group.name)}, groupFields: [${group.fields.map((name) => fields.get(name)).join(',')}] }`,
             )
             .join(',')}] }`,
       )
@@ -521,9 +540,16 @@ function generatedFiles(config) {
   manifest.supportsFullBleed = normalized.webpart.supportsFullBleed
   manifest.supportsThemeVariants = normalized.webpart.supportsThemeVariants
   entry.groupId = normalized.webpart.groupId
-  entry.group.default = normalized.webpart.group
-  entry.title.default = normalized.title
-  entry.description.default = normalized.description ?? ''
+  entry.group =
+    typeof normalized.webpart.group === 'string'
+      ? { default: normalized.webpart.group }
+      : normalized.webpart.group
+  entry.title =
+    typeof normalized.title === 'string' ? { default: normalized.title } : normalized.title
+  entry.description =
+    typeof normalized.description === 'object'
+      ? normalized.description
+      : { default: normalized.description ?? '' }
   entry.officeFabricIconFontName = normalized.webpart.icon
   entry.properties = Object.fromEntries(
     Object.entries(normalized.webpart.properties).map(([propertyName, property]) => [
@@ -556,11 +582,11 @@ function generatedFiles(config) {
   solution.solution.version = spfxVersion
   solution.solution.includeClientSideAssets = normalized.solution.includeClientSideAssets
   solution.solution.skipFeatureDeployment = normalized.solution.skipFeatureDeployment
-  solution.solution.metadata.shortDescription.default = normalized.description ?? ''
-  solution.solution.metadata.longDescription.default = normalized.description ?? ''
+  solution.solution.metadata.shortDescription = entry.description
+  solution.solution.metadata.longDescription = entry.description
   solution.solution.features[0].id = normalized.ids.feature
-  solution.solution.features[0].title = `${normalized.title} feature`
-  solution.solution.features[0].description = `Activates the ${normalized.title} solution.`
+  solution.solution.features[0].title = `${entry.title.default} feature`
+  solution.solution.features[0].description = `Activates the ${entry.title.default} solution.`
   if (normalized.solution.permissions.length) {
     solution.solution.webApiPermissionRequests = normalized.solution.permissions
   } else {
