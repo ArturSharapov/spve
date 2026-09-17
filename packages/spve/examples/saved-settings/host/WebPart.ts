@@ -9,7 +9,7 @@ export default class WebPart extends Base {
   protected onAfterDeserialize(
     properties: unknown,
     storedVersion: Version,
-  ): Record<string, unknown> {
+  ): { listIds: string[]; [key: string]: unknown } {
     if (Version.compare(storedVersion, this.dataVersion) > 0) {
       throw new Error(`Saved settings version ${storedVersion} is newer than supported version 2.0`)
     }
@@ -34,6 +34,6 @@ export default class WebPart extends Base {
         'Invalid listIds in saved settings version 2.0: expected an array of nonempty strings',
       )
     }
-    return next
+    return { ...next, listIds: next.listIds }
   }
 }

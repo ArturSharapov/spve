@@ -370,6 +370,8 @@ and synchronous `onAfterDeserialize` in its host subclass. The executable exampl
 in `examples/saved-settings/host/WebPart.ts` upgrades a version 1.0 `listId` string
 to a version 2.0 `listIds` array. Use it with
 `host: { entry: './host/WebPart.ts' }` after placing it in your project.
+Declare the current `listIds` property as `{ type: 'json', default: [], required: true }`.
+A migration must also return any other required properties declared by its project.
 
 For `{ listId: 'news', title: 'Latest' }`, it returns
 `{ listIds: ['news'], title: 'Latest' }`. It deliberately removes the old `listId`
