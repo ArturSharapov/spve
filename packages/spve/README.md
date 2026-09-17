@@ -232,3 +232,31 @@ objects. Services use the same mount context as the main application. SPVE loads
 the editor before opening the pane, keeps its mount across field refreshes, and
 disposes it when the pane closes. React editors use the application's React
 renderer, independently of SPFx's property-pane renderer.
+
+### Dependent controls and Apply mode
+
+Set `webpart.pane.reactive` to `false` to use SharePoint's Apply button. The main
+application receives committed snapshots; editors receive current draft
+properties. An editor can call `onChange(value, false)` while input is invalid or
+an asynchronous check is pending. Keep unparsable text in the editor's own state.
+
+For a library/column picker, read `properties.libraryId` and fetch its columns
+when that value changes. Ignore results from an earlier selection or a disposed
+editor. Keep a previously selected column visible but invalid if the new library
+does not contain it. Emit a replacement value after the user selects a valid
+column. Fetching and cancellation belong to that editor, not pane configuration.
+
+To arrange ordinary fields, declare their names in order:
+
+```ts
+pane: {
+  reactive: false,
+  pages: [{
+    description: 'Content',
+    groups: [{ name: 'Source', fields: ['libraryId', 'columnId'] }],
+  }],
+}
+```
+
+A declared layout must include each visible field exactly once. Without a layout,
+SPVE keeps its existing single page and group.

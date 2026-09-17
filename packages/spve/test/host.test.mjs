@@ -8,9 +8,12 @@ const source = readFileSync(
   new URL('../template/webpart/src/webparts/spve/SpveWebPart.ts', import.meta.url),
   'utf8',
 )
-const compiled = ts.transpileModule(source, {
-  compilerOptions: { module: ts.ModuleKind.CommonJS, target: ts.ScriptTarget.ES2020 },
-}).outputText
+const compiled = ts.transpileModule(
+  source.replace('/* __SPVE_PROPERTY_NAMES__ */ []', '["views", "library"]'),
+  {
+    compilerOptions: { module: ts.ModuleKind.CommonJS, target: ts.ScriptTarget.ES2020 },
+  },
+).outputText
 const exports = {}
 new Function('require', 'exports', compiled)((id) => {
   if (id === '@microsoft/sp-webpart-base') return { BaseClientSideWebPart: class {} }
@@ -50,4 +53,30 @@ test('custom editors retain their mount and dispose independently', () => {
   expect(instances[1].unmount).not.toHaveBeenCalled()
   host.onDispose()
   expect(instances[1].unmount).toHaveBeenCalledTimes(1)
+})
+
+test('Apply mode keeps committed values during unrelated renders', async () => {
+  vi.useFakeTimers()
+  try {
+    const host = new Host()
+    Object.defineProperty(host, 'disableReactivePropertyChanges', { value: true })
+    host.properties = { views: [{ name: 'saved' }], undeclared: 'host only' }
+    host.app = { setProps: vi.fn(), unmount: vi.fn() }
+    host.onPropertyPaneConfigurationStart()
+    host.properties.views[0].name = 'draft'
+    host.render()
+    await vi.runAllTimersAsync()
+    expect(host.app.setProps).toHaveBeenLastCalledWith({ views: [{ name: 'saved' }] })
+    host.onAfterPropertyPaneChangesApplied()
+    host.render()
+    await vi.runAllTimersAsync()
+    expect(host.app.setProps).toHaveBeenLastCalledWith({ views: [{ name: 'draft' }] })
+    host.properties = { views: [{ name: 'restored by SPFx' }] }
+    host.onPropertyPaneConfigurationComplete()
+    host.render()
+    await vi.runAllTimersAsync()
+    expect(host.app.setProps).toHaveBeenLastCalledWith({ views: [{ name: 'restored by SPFx' }] })
+  } finally {
+    vi.useRealTimers()
+  }
 })

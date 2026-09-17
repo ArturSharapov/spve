@@ -267,6 +267,31 @@ export function normalizeConfig(config) {
     propertyType(name, property)
   }
 
+  const pages = config.webpart.pane?.pages
+  if (pages !== undefined) {
+    if (!Array.isArray(pages) || !pages.length)
+      throw new Error('SPVE: pane.pages must contain a page')
+    const remaining = new Set(
+      Object.entries(properties)
+        .filter(([, property]) => propertyControl(property) !== 'none')
+        .map(([name]) => name),
+    )
+    for (const page of pages) {
+      if (!Array.isArray(page.groups) || !page.groups.length)
+        throw new Error('SPVE: every pane page needs groups')
+      for (const group of page.groups) {
+        if (!group.name || !Array.isArray(group.fields))
+          throw new Error('SPVE: every pane group needs a name and fields')
+        for (const name of group.fields) {
+          if (!remaining.delete(name))
+            throw new Error(`SPVE: pane field ${name} is unknown, hidden, or repeated`)
+        }
+      }
+    }
+    if (remaining.size)
+      throw new Error(`SPVE: pane layout omits fields: ${[...remaining].join(', ')}`)
+  }
+
   return {
     ...config,
     webpart: {
@@ -298,9 +323,9 @@ function readTemplate(directory = template, prefix = '', files = new Map()) {
   return files
 }
 
-function propertyPaneSource(properties) {
+function propertyPaneSource(properties, pane) {
   const imports = new Set(['type IPropertyPaneConfiguration'])
-  const fields = []
+  const fields = new Map()
 
   for (const [name, property] of Object.entries(properties)) {
     const label = property.label ?? name
@@ -309,12 +334,14 @@ function propertyPaneSource(properties) {
     if (control === 'none') continue
 
     if (control === 'custom') {
-      fields.push(
+      fields.set(
+        name,
         `this.editorField(${JSON.stringify(name)}, ${JSON.stringify(settings.editor)}, ${Boolean(settings.disabled)})`,
       )
     } else if (control === 'toggle') {
       imports.add('PropertyPaneToggle')
-      fields.push(
+      fields.set(
+        name,
         `PropertyPaneToggle(${JSON.stringify(name)}, ${JSON.stringify({
           label,
           onText: settings.onText,
@@ -328,7 +355,8 @@ function propertyPaneSource(properties) {
       )
     } else if (control === 'checkbox') {
       imports.add('PropertyPaneCheckbox')
-      fields.push(
+      fields.set(
+        name,
         `PropertyPaneCheckbox(${JSON.stringify(name)}, ${JSON.stringify({
           text: label,
           ariaLabel: settings.ariaLabel,
@@ -337,7 +365,8 @@ function propertyPaneSource(properties) {
       )
     } else if (control === 'slider') {
       imports.add('PropertyPaneSlider')
-      fields.push(
+      fields.set(
+        name,
         `PropertyPaneSlider(${JSON.stringify(name)}, ${JSON.stringify({
           label,
           min: settings.min ?? 0,
@@ -364,7 +393,8 @@ function propertyPaneSource(properties) {
         }
         return entries
       })
-      fields.push(
+      fields.set(
+        name,
         `PropertyPaneDropdown(${JSON.stringify(name)}, ${JSON.stringify({
           label,
           options,
@@ -392,12 +422,14 @@ function propertyPaneSource(properties) {
         disabled: option.disabled,
         ariaLabel: option.ariaLabel,
       }))
-      fields.push(
+      fields.set(
+        name,
         `PropertyPaneChoiceGroup(${JSON.stringify(name)}, ${JSON.stringify({ label, options })})`,
       )
     } else {
       imports.add('PropertyPaneTextField')
-      fields.push(
+      fields.set(
+        name,
         `PropertyPaneTextField(${JSON.stringify(name)}, ${JSON.stringify({
           label,
           description: settings.description,
@@ -422,7 +454,24 @@ function propertyPaneSource(properties) {
 
   return {
     imports: `import { ${[...imports].join(', ')} } from '@microsoft/sp-property-pane'`,
-    fields: fields.map((field) => `                ${field},`).join('\n'),
+    pages: (
+      pane?.pages ?? [
+        {
+          description: 'Web part settings',
+          groups: [{ name: 'Web part properties', fields: [...fields.keys()] }],
+        },
+      ]
+    )
+      .map(
+        (page) =>
+          `{ header: ${JSON.stringify({ description: page.description })}, groups: [${page.groups
+            .map(
+              (group) =>
+                `{ groupName: ${JSON.stringify(group.name)}, groupFields: [${group.fields.map((name) => fields.get(name)).join(',')}] }`,
+            )
+            .join(',')}] }`,
+      )
+      .join(','),
     type: Object.entries(properties)
       .map(
         ([name, property]) =>
@@ -446,7 +495,7 @@ function generatedFiles(config) {
   const normalized = normalizeConfig(config)
   const files = readTemplate()
   const name = kebabCase(normalized.name)
-  const pane = propertyPaneSource(normalized.webpart.properties)
+  const pane = propertyPaneSource(normalized.webpart.properties, normalized.webpart.pane)
 
   const sourceName = 'src/webparts/spve/SpveWebPart.ts'
   files.set(
@@ -455,7 +504,12 @@ function generatedFiles(config) {
       .get(sourceName)
       .replace('/* __SPVE_PROPERTY_PANE_IMPORTS__ */', pane.imports)
       .replace('/* __SPVE_PROPERTIES_TYPE__ */', pane.type)
-      .replace('/* __SPVE_PROPERTY_FIELDS__ */', pane.fields),
+      .replace('/* __SPVE_PROPERTY_PAGES__ */', pane.pages)
+      .replace('/* __SPVE_REACTIVE__ */ false', String(normalized.webpart.pane?.reactive === false))
+      .replace(
+        '/* __SPVE_PROPERTY_NAMES__ */ []',
+        JSON.stringify(Object.keys(normalized.webpart.properties)),
+      ),
   )
 
   const manifestName = 'src/webparts/spve/SpveWebPart.manifest.json'

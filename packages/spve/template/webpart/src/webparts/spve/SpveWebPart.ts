@@ -42,6 +42,35 @@ export default class SpveWebPart extends BaseClientSideWebPart<ISpveWebPartProps
   private renderVersion = 0
   private app?: Instance
   private sharepoint!: SPFI
+  private committedProps?: ISpveWebPartProps
+
+  private propertySnapshot(): ISpveWebPartProps {
+    const names: string[] = /* __SPVE_PROPERTY_NAMES__ */ []
+    return JSON.parse(
+      JSON.stringify(Object.fromEntries(names.map((name) => [name, this.properties[name]]))),
+    )
+  }
+
+  protected get disableReactivePropertyChanges(): boolean {
+    return /* __SPVE_REACTIVE__ */ false
+  }
+
+  protected onPropertyPaneConfigurationStart(): void {
+    this.committedProps = this.propertySnapshot()
+  }
+
+  protected onAfterPropertyPaneChangesApplied(): void {
+    this.committedProps = this.propertySnapshot()
+  }
+
+  protected onPropertyPaneConfigurationComplete(): void {
+    this.committedProps = undefined
+  }
+
+  protected onPropertyPaneFieldChanged(): void {
+    this.context.propertyPane.refresh()
+  }
+
   private module?: AppModule
   private editors = new Map<HTMLElement, SpveInstance<EditorProps>>()
 
@@ -62,7 +91,7 @@ export default class SpveWebPart extends BaseClientSideWebPart<ISpveWebPartProps
         onRender: (element, _context, change) => {
           const app = this.module?.editors?.[editor]
           if (!app) throw new Error(`SPVE: editor ${editor} for property ${name} is not exported`)
-          const properties = JSON.parse(JSON.stringify(this.properties))
+          const properties = this.propertySnapshot()
           const props: EditorProps = {
             value: properties[name],
             properties,
@@ -97,11 +126,15 @@ export default class SpveWebPart extends BaseClientSideWebPart<ISpveWebPartProps
 
   public render(): void {
     const version = ++this.renderVersion
+    const props =
+      this.disableReactivePropertyChanges && this.committedProps
+        ? this.committedProps
+        : this.propertySnapshot()
 
     if (this.mountingTimer) clearTimeout(this.mountingTimer)
     this.mountingTimer = setTimeout(async () => {
       if (this.app) {
-        this.app.setProps(this.properties)
+        this.app.setProps(props)
         return
       }
 
@@ -112,7 +145,7 @@ export default class SpveWebPart extends BaseClientSideWebPart<ISpveWebPartProps
       this.domElement.replaceChildren(element)
       const app = module.default.mount({
         element,
-        props: this.properties,
+        props,
         services: { sp: this.sharepoint, context: this.context },
       })
       if (version !== this.renderVersion) {
@@ -138,17 +171,7 @@ export default class SpveWebPart extends BaseClientSideWebPart<ISpveWebPartProps
 
   protected getPropertyPaneConfiguration(): IPropertyPaneConfiguration {
     return {
-      pages: [
-        {
-          header: { description: 'Web part settings' },
-          groups: [
-            {
-              groupName: 'Web part properties',
-              groupFields: [/* __SPVE_PROPERTY_FIELDS__ */],
-            },
-          ],
-        },
-      ],
+      pages: [/* __SPVE_PROPERTY_PAGES__ */],
     }
   }
 }
