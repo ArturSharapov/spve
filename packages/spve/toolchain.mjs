@@ -56,8 +56,22 @@ function cacheRoot() {
   return path.join(process.env.XDG_CACHE_HOME ?? path.join(os.homedir(), '.cache'), 'spve')
 }
 
-function descriptor() {
+export function toolchainDescriptor(dependencies = {}) {
   const packageJson = JSON.parse(readFileSync(templatePackage, 'utf8'))
+  for (const [name, version] of Object.entries(dependencies).sort(([a], [b]) =>
+    a.localeCompare(b),
+  )) {
+    if (
+      !/^(@[a-z0-9._-]+\/)?[a-z0-9._-]+$/.test(name) ||
+      typeof version !== 'string' ||
+      !version.trim()
+    )
+      throw new Error(`SPVE: invalid host dependency ${name}`)
+    const pinned = packageJson.dependencies[name] ?? packageJson.devDependencies[name]
+    if (pinned && pinned !== version)
+      throw new Error(`SPVE: host dependency ${name} must retain ${pinned}`)
+    if (!pinned) packageJson.dependencies[name] = version
+  }
   packageJson.name = 'spve-sharepoint-toolchain'
   packageJson.version = '0.0.1'
   return packageJson
@@ -224,8 +238,12 @@ function ensureLink(webpart, toolchain, key) {
   throw new Error('SPVE: could not link the shared SharePoint toolchain')
 }
 
-export async function prepareToolchain(signal, logger, { showProgress = true } = {}) {
-  const packageJson = descriptor()
+export async function prepareToolchain(
+  signal,
+  logger,
+  { showProgress = true, dependencies = {} } = {},
+) {
+  const packageJson = toolchainDescriptor(dependencies)
   const key = toolchainKey(packageJson)
   const root = path.join(cacheRoot(), 'toolchains')
   const toolchain = path.join(root, key)
@@ -287,7 +305,10 @@ export async function prepareToolchain(signal, logger, { showProgress = true } =
 }
 
 export async function ensureToolchain(webpart, signal, logger) {
-  const { key, toolchain } = await prepareToolchain(signal, logger)
+  const config = JSON.parse(readFileSync(path.join(webpart, 'config/spve.json'), 'utf8'))
+  const { key, toolchain } = await prepareToolchain(signal, logger, {
+    dependencies: config.hostDependencies,
+  })
   ensureLink(webpart, toolchain, key)
   return { heft: path.join(webpart, 'node_modules/.bin/heft'), key, toolchain }
 }

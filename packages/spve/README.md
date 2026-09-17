@@ -296,3 +296,42 @@ Return JSON-compatible values synchronously. Normalization must be idempotent
 because the same value can pass validation at preparation, loading, and editing.
 Imported parser sources are watched in development and rebuild default validation
 when changed. No validation library is required.
+
+## Native host extensions
+
+Use a host subclass when a native SPFx lifecycle hook is needed. Ordinary
+applications and property editors do not need one.
+
+```ts
+// spve.config.ts
+host: { entry: './host/WebPart.ts' },
+```
+
+```ts
+// host/WebPart.ts
+import Base from 'spve/host'
+
+export default class WebPart extends Base {
+  protected async onInit(): Promise<void> {
+    await super.onInit()
+    // Subscribe to the native service needed by this web part here.
+  }
+
+  protected onDispose(): void {
+    // Unsubscribe from that service here.
+    super.onDispose()
+  }
+}
+```
+
+Keep the host entry and its relative imports in their own directory, outside the
+application's `src`. SPVE copies that directory into its generated host, watches
+the original sources, and removes stale generated copies. Imports outside that
+directory are not supported. Compile this code with the generated SPFx project;
+its compiler and dependencies are separate from the application.
+
+Declare extra native dependencies in `host.dependencies`. SPVE includes them in
+the shared toolchain descriptor and rejects changes to pinned packages. The same
+descriptor is used during preparation, development, and packaging. Its cache hash
+does not lock transitive dependency versions. Follow the native lifecycle's
+`super` requirements and retain SPVE initialization and disposal.

@@ -13,6 +13,7 @@ import { fileURLToPath, pathToFileURL } from 'node:url'
 import path from 'node:path'
 import { isJsonValue, parseProperty } from './properties.mjs'
 import { build } from 'vite-plus'
+import { toolchainDescriptor } from './toolchain.mjs'
 
 const template = fileURLToPath(new URL('./template/webpart', import.meta.url))
 const stateVersion = 1
@@ -579,6 +580,9 @@ function generatedFiles(config) {
     json({
       vitePort: normalized.dev.vitePort,
       spfxPort: normalized.dev.spfxPort,
+      ...(normalized.host
+        ? { host: true, hostDependencies: normalized.host.dependencies ?? {} }
+        : {}),
     }),
   )
 
@@ -683,6 +687,37 @@ export async function prepareWebpart(root, config) {
     ...normalized,
     webpart: { ...normalized.webpart, properties },
   })
+  if (normalized.host) {
+    const entry = normalized.host.entry
+    if (
+      typeof entry !== 'string' ||
+      !entry.startsWith('./') ||
+      entry.split('/').includes('..') ||
+      !/\.tsx?$/.test(entry)
+    )
+      throw new Error('SPVE: host.entry must name a project-relative TypeScript file')
+    const source = path.resolve(root, entry)
+    const directory = path.dirname(source)
+    if (directory === path.resolve(root) || directory.split(path.sep).includes('.spve'))
+      throw new Error('SPVE: put host sources in a separate project directory')
+    if (!existsSync(source)) throw new Error(`SPVE: missing host entry ${entry}`)
+    for (const [file, contents] of readTemplate(directory))
+      generated.files.set(`webpart/src/host/${file}`, contents)
+    const host = 'webpart/src/webparts/spve/SpveWebPart.ts'
+    generated.files.set('webpart/src/webparts/spve/SpveWebPartBase.ts', generated.files.get(host))
+    generated.files.set(
+      host,
+      `export { default } from '../../host/${path.basename(source).replace(/\.tsx?$/, '')}'\n`,
+    )
+    const compiler = JSON.parse(generated.files.get('webpart/tsconfig.json'))
+    compiler.compilerOptions.baseUrl = '.'
+    compiler.compilerOptions.paths = { 'spve/host': ['./src/webparts/spve/SpveWebPartBase'] }
+    generated.files.set('webpart/tsconfig.json', json(compiler))
+    const descriptor = toolchainDescriptor(normalized.host.dependencies)
+    const packageJson = JSON.parse(generated.files.get('webpart/package.json'))
+    packageJson.dependencies = descriptor.dependencies
+    generated.files.set('webpart/package.json', json(packageJson))
+  }
   if (parsers.length) {
     generated.files.set(
       'parsers.mjs',

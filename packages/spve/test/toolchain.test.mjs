@@ -25,3 +25,17 @@ test('uses the Vite+ runtime manager outside project-local binaries', () => {
     rmSync(home, { recursive: true, force: true })
   }
 })
+
+test('host dependencies preserve toolchain pins and have stable ordering', async () => {
+  const { toolchainDescriptor } = await import('../toolchain.mjs')
+  assert.deepEqual(
+    toolchainDescriptor({ zod: '3.24.0', nanoid: '5.0.0' }),
+    toolchainDescriptor({ nanoid: '5.0.0', zod: '3.24.0' }),
+  )
+  assert.throws(() => toolchainDescriptor({ typescript: '6.0.0' }), /must retain/)
+  assert.throws(
+    () => toolchainDescriptor({ '@microsoft/sp-webpart-base': '1.21.0' }),
+    /must retain/,
+  )
+  assert.equal(toolchainDescriptor().dependencies['@microsoft/sp-webpart-base'], '1.22.2')
+})
