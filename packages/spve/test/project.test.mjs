@@ -111,12 +111,12 @@ function projectConfig() {
   }
 }
 
-test('generates typed properties and only rewrites changed generated files', () => {
+test('generates typed properties and only rewrites changed generated files', async () => {
   const root = mkdtempSync(path.join(tmpdir(), 'spve-project-'))
   const config = projectConfig()
 
   try {
-    prepareWebpart(root, config)
+    await prepareWebpart(root, config)
 
     const client = path.join(root, '.spve/types.d.ts')
     const source = path.join(root, '.spve/webpart/src/webparts/spve/SpveWebPart.ts')
@@ -174,19 +174,19 @@ test('generates typed properties and only rewrites changed generated files', () 
     utimesSync(client, old, old)
     utimesSync(unchangedFile, old, old)
     utimesSync(stateFile, old, old)
-    prepareWebpart(root, config)
+    await prepareWebpart(root, config)
     assert.equal(statSync(client).mtimeMs, old.getTime())
     assert.equal(statSync(unchangedFile).mtimeMs, old.getTime())
     assert.equal(statSync(stateFile).mtimeMs, old.getTime())
 
     const generatedSource = readFileSync(source, 'utf8')
     writeFileSync(source, '// manually changed\n')
-    prepareWebpart(root, config)
+    await prepareWebpart(root, config)
     assert.equal(readFileSync(source, 'utf8'), generatedSource)
     assert.equal(statSync(unchangedFile).mtimeMs, old.getTime())
 
     config.webpart.properties.subtitle = { type: 'string', label: 'Subtitle' }
-    prepareWebpart(root, config)
+    await prepareWebpart(root, config)
     assert.notEqual(statSync(client).mtimeMs, old.getTime())
     assert.equal(statSync(unchangedFile).mtimeMs, old.getTime())
   } finally {
@@ -194,8 +194,8 @@ test('generates typed properties and only rewrites changed generated files', () 
   }
 })
 
-describe('property validation', () => {
-  test('rejects incompatible defaults and invalid control-specific settings', () => {
+describe('property validation', async () => {
+  test('rejects incompatible defaults and invalid control-specific settings', async () => {
     const config = projectConfig()
     config.webpart.properties.count.default = 'three'
     expect(() => normalizeConfig(config)).toThrow(/default value.*count.*number/)
@@ -209,12 +209,12 @@ describe('property validation', () => {
   })
 })
 
-test('generates custom editor fields without changing the saved property shape', () => {
+test('generates custom editor fields without changing the saved property shape', async () => {
   const root = mkdtempSync(path.join(tmpdir(), 'spve-editor-'))
   const config = projectConfig()
   config.webpart.properties.settings.control = { type: 'custom', editor: 'settings' }
   try {
-    prepareWebpart(root, config)
+    await prepareWebpart(root, config)
     const host = readFileSync(
       path.join(root, '.spve/webpart/src/webparts/spve/SpveWebPart.ts'),
       'utf8',
@@ -236,7 +236,7 @@ test('generates custom editor fields without changing the saved property shape',
   }
 })
 
-test('orders native pane fields and rejects omitted or duplicate fields', () => {
+test('orders native pane fields and rejects omitted or duplicate fields', async () => {
   const root = mkdtempSync(path.join(tmpdir(), 'spve-pane-'))
   const config = projectConfig()
   config.webpart.properties = { title: { type: 'string' }, enabled: { type: 'boolean' } }
@@ -247,7 +247,7 @@ test('orders native pane fields and rejects omitted or duplicate fields', () => 
     ],
   }
   try {
-    prepareWebpart(root, config)
+    await prepareWebpart(root, config)
     const host = readFileSync(
       path.join(root, '.spve/webpart/src/webparts/spve/SpveWebPart.ts'),
       'utf8',
@@ -260,6 +260,49 @@ test('orders native pane fields and rejects omitted or duplicate fields', () => 
     expect(() => normalizeConfig(config)).toThrow(/omits fields: enabled/)
     config.webpart.pane.pages[0].groups[0].fields = ['title', 'title']
     expect(() => normalizeConfig(config)).toThrow(/repeated/)
+  } finally {
+    rmSync(root, { recursive: true, force: true })
+  }
+})
+
+test('parser defaults are typed, validated, isolated, and refreshed with imported source changes', async () => {
+  const root = mkdtempSync(path.join(tmpdir(), 'spve-parser-'))
+  const config = projectConfig()
+  config.webpart.properties = {
+    views: { type: 'json', default: [], parser: { module: './parser.ts', export: 'parseViews' } },
+    optional: { type: 'json', parser: { module: './parser.ts', export: 'parseViews' } },
+    untouched: { type: 'json', default: [] },
+  }
+  writeFileSync(path.join(root, 'name.ts'), 'export const name = "first"')
+  writeFileSync(
+    path.join(root, 'parser.ts'),
+    `import { name } from './name'
+    export function parseViews(value: unknown): { name: string }[] {
+      if (!Array.isArray(value)) throw new Error('Expected views array')
+      value.push({ name })
+      return value
+    }`,
+  )
+  try {
+    await prepareWebpart(root, config)
+    const manifest = path.join(root, '.spve/webpart/src/webparts/spve/SpveWebPart.manifest.json')
+    expect(JSON.parse(readFileSync(manifest, 'utf8')).preconfiguredEntries[0].properties).toEqual({
+      views: [{ name: 'first' }],
+      untouched: [],
+    })
+    expect(config.webpart.properties.views.default).toEqual([])
+    const types = readFileSync(path.join(root, '.spve/types.d.ts'), 'utf8')
+    expect(types).toContain('ReturnType<typeof import("../parser.ts")["parseViews"]>')
+    expect(types).toContain('"untouched"?: unknown[]')
+    writeFileSync(path.join(root, 'name.ts'), 'export const name = "second"')
+    await prepareWebpart(root, config)
+    expect(
+      JSON.parse(readFileSync(manifest, 'utf8')).preconfiguredEntries[0].properties.views,
+    ).toEqual([{ name: 'second' }])
+    config.webpart.properties.views.default = 1
+    await expect(prepareWebpart(root, config)).rejects.toThrow(
+      /property views: Expected views array/,
+    )
   } finally {
     rmSync(root, { recursive: true, force: true })
   }

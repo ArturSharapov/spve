@@ -16,7 +16,12 @@ type Services = { sp: SPFI; context: WebPartContext }
 type App = SpveApp<ISpveWebPartProps, Services>
 type Instance = SpveInstance<ISpveWebPartProps>
 type EditorProps = SpveEditorProps<unknown, ISpveWebPartProps>
-type AppModule = { default: App; editors?: Record<string, SpveApp<EditorProps, Services>> }
+type AppModule = {
+  parseProperties?(props: ISpveWebPartProps): ISpveWebPartProps
+  parseProperty?(name: string, value: unknown): unknown
+  default: App
+  editors?: Record<string, SpveApp<EditorProps, Services>>
+}
 let modulePromise: Promise<AppModule> | undefined
 let sharedSharePoint: SPFI | undefined
 
@@ -96,7 +101,18 @@ export default class SpveWebPart extends BaseClientSideWebPart<ISpveWebPartProps
             value: properties[name],
             properties,
             disabled,
-            onChange: (value, valid = true) => change?.(name, value, valid),
+            onChange: (value, valid = true) => {
+              try {
+                const parsed =
+                  valid && this.module?.parseProperty
+                    ? this.module.parseProperty(name, value)
+                    : value
+                change?.(name, parsed, valid)
+              } catch (error) {
+                change?.(name, this.properties[name], false)
+                throw error
+              }
+            },
           }
           const instance = this.editors.get(element)
           if (instance) instance.setProps(props)
@@ -134,18 +150,19 @@ export default class SpveWebPart extends BaseClientSideWebPart<ISpveWebPartProps
     if (this.mountingTimer) clearTimeout(this.mountingTimer)
     this.mountingTimer = setTimeout(async () => {
       if (this.app) {
-        this.app.setProps(props)
+        this.app.setProps(this.module?.parseProperties?.(props) ?? props)
         return
       }
 
       const module = await loadModule()
+      this.module = module
       if (version !== this.renderVersion) return
 
       const element = document.createElement('div')
       this.domElement.replaceChildren(element)
       const app = module.default.mount({
         element,
-        props,
+        props: module.parseProperties?.(props) ?? props,
         services: { sp: this.sharepoint, context: this.context },
       })
       if (version !== this.renderVersion) {

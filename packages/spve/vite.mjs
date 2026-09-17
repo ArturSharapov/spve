@@ -1,4 +1,4 @@
-import { existsSync } from 'node:fs'
+import { existsSync, readFileSync } from 'node:fs'
 import { createRequire } from 'node:module'
 import { fileURLToPath } from 'node:url'
 import path from 'node:path'
@@ -15,6 +15,9 @@ import { loadSpveConfig, normalizeConfig } from './project.mjs'
 const publicSharePoint = fileURLToPath(new URL('./sp.mjs', import.meta.url))
 const publicVueAdapter = fileURLToPath(new URL('./vue.mjs', import.meta.url))
 const privateMsal = fileURLToPath(new URL('./msal.mjs', import.meta.url))
+const virtualApp = 'virtual:spve-app'
+const virtualProperties = 'virtual:spve-properties'
+const propertyRuntime = fileURLToPath(new URL('./properties.mjs', import.meta.url))
 const virtualStandalone = 'virtual:spve-standalone'
 const resolvedVirtualStandalone = `\0${virtualStandalone}`
 const virtualSharePoint = '/__spve-sharepoint'
@@ -62,6 +65,9 @@ function spvePlugin() {
   let vueProperties = {}
   let projectConfigFile
   let packageWebpartOnClose = false
+  let parserFile
+  let parserInputs = []
+  let parserProperties = {}
 
   return {
     name: 'spve',
@@ -125,7 +131,15 @@ function spvePlugin() {
           { type: null, required: Boolean(property.required) },
         ]),
       )
-      webpart = prepareWebpart(root, settings)
+      webpart = await prepareWebpart(root, settings)
+      parserProperties = normalized.webpart.properties
+      parserFile = path.join(root, '.spve/parsers.mjs')
+      parserInputs = existsSync(parserFile)
+        ? JSON.parse(readFileSync(path.join(root, '.spve/parser-inputs.json'), 'utf8'))
+        : []
+      applicationProps = JSON.parse(
+        readFileSync(path.join(webpart, 'src/webparts/spve/SpveWebPart.manifest.json'), 'utf8'),
+      ).preconfiguredEntries[0].properties
       const spDevelopment = spMode && environment.command === 'serve'
       packageWebpartOnClose = spMode && environment.command === 'build'
       const https = spDevelopment
@@ -158,7 +172,7 @@ function spvePlugin() {
                 emptyOutDir: true,
                 outDir: '.spve/webpart/src/lib/appcode',
                 lib: {
-                  entry,
+                  entry: virtualApp,
                   formats: ['es'],
                   fileName: 'index',
                 },
@@ -174,9 +188,10 @@ function spvePlugin() {
     },
 
     configureServer(server) {
-      server.watcher.add(projectConfigFile)
+      server.watcher.add([projectConfigFile, ...parserInputs])
       server.watcher.on('change', (file) => {
-        if (path.resolve(file) === projectConfigFile) void server.restart()
+        if (path.resolve(file) === projectConfigFile || parserInputs.includes(path.resolve(file)))
+          void server.restart()
       })
 
       if (!spMode || !webpart) return
@@ -245,6 +260,8 @@ function spvePlugin() {
     },
 
     resolveId(id) {
+      if (id.endsWith('/' + virtualApp)) return `\0${virtualApp}`
+      if (id === virtualApp || id === virtualProperties) return `\0${id}`
       if (id === virtualStandalone) return resolvedVirtualStandalone
       if (id === virtualSharePoint) return resolvedVirtualSharePoint
       if (id === virtualVueProperties) return resolvedVirtualVueProperties
@@ -252,13 +269,40 @@ function spvePlugin() {
     },
 
     load(id) {
+      if (id === `\0${virtualProperties}`) {
+        const required = Object.fromEntries(
+          Object.entries(parserProperties)
+            .filter(([, property]) => property.parser)
+            .map(([name, property]) => [name, Boolean(property.required)]),
+        )
+        return `
+          ${parserInputs.length ? `import parsers from ${JSON.stringify(parserFile)}` : 'const parsers = {}'}
+          import { parseProperty as parse } from ${JSON.stringify(propertyRuntime)}
+          const required = ${JSON.stringify(required)}
+          export function parseProperty(name, value) {
+            if (!Object.hasOwn(parsers, name) || value === undefined && !required[name]) return value
+            return parse(name, value, parsers[name])
+          }
+          export function parseProperties(properties) {
+            const result = { ...properties }
+            for (const name of Object.keys(parsers)) {
+              if (Object.hasOwn(properties, name) || required[name]) result[name] = parseProperty(name, properties[name])
+            }
+            return result
+          }
+        `
+      }
+      if (id === `\0${virtualApp}`) {
+        return `export { default } from ${JSON.stringify(applicationEntry)}; export * from ${JSON.stringify(applicationEntry)}; export { parseProperties, parseProperty } from '${virtualProperties}'`
+      }
       if (id === resolvedVirtualStandalone) {
         return `
           import app from ${JSON.stringify(applicationEntry)}
+          import { parseProperties } from '${virtualProperties}'
           import { createMsalSP } from ${JSON.stringify(privateMsal)}
           app.mount({
             element: document.querySelector('#spve-local'),
-            props: ${JSON.stringify(applicationProps)},
+            props: parseProperties(${JSON.stringify(applicationProps)}),
             services: { sp: await createMsalSP(${JSON.stringify(sharePointSiteUrl)}) },
           })
         `
@@ -324,6 +368,7 @@ function spvePlugin() {
             })
           }
 
+          export { parseProperties, parseProperty } from '${virtualProperties}'
           export default app
         `
       }

@@ -2,7 +2,7 @@ import { mkdtempSync, mkdirSync, writeFileSync, symlinkSync, rmSync } from 'node
 import { tmpdir } from 'node:os'
 import path from 'node:path'
 import { createRequire } from 'node:module'
-import { resolveConfig } from 'vite-plus'
+import { resolveConfig, build } from 'vite-plus'
 import { expect, test, vi } from 'vite-plus/test'
 import { spve } from '../vite.mjs'
 
@@ -30,7 +30,16 @@ test.each(['absent', 'present', 'broken'])(
           version: '1.0.0',
           ids: { component: 'component', solution: 'solution', feature: 'feature' },
           dev: { siteUrl: 'https://example.sharepoint.com', vitePort: 5173, spfxPort: 4321 },
-          webpart: { alias: 'Test' },
+          webpart: {
+            alias: 'Test',
+            properties: {
+              views: {
+                type: 'json',
+                default: [],
+                parser: { module: './parser.ts', export: 'parseViews' },
+              },
+            },
+          },
         })}`,
       )
       if (react !== 'absent') {
@@ -48,6 +57,10 @@ test.each(['absent', 'present', 'broken'])(
           'exports.createRoot = () => {}',
         )
       }
+      writeFileSync(
+        path.join(root, 'parser.ts'),
+        'export function parseViews(value: unknown): string[] { if (!Array.isArray(value) || value.some(v => typeof v !== "string")) throw new Error("Expected names"); return value }',
+      )
       const defaults = spve()
       const options = {
         ...defaults,
@@ -71,6 +84,28 @@ test.each(['absent', 'present', 'broken'])(
           'serve',
         )
         expect(nested.optimizeDeps.include).toContain('spve/react > some-cjs')
+        if (react === 'absent') {
+          const result = await build({
+            ...options,
+            logLevel: 'silent',
+            build: {
+              write: false,
+              minify: false,
+              lib: { entry: 'virtual:spve-app', formats: ['es'] },
+            },
+          })
+          const output = (Array.isArray(result) ? result[0] : result).output.find(
+            (file) => file.type === 'chunk' && file.isEntry,
+          )
+          const module = await import(
+            `data:text/javascript;base64,${Buffer.from(output.code).toString('base64')}`
+          )
+          expect(module.parseProperties({ views: ['valid'] })).toEqual({ views: ['valid'] })
+          expect(module.parseProperties({})).toEqual({})
+          expect(() => module.parseProperties({ views: [1] })).toThrow(
+            /property views: Expected names/,
+          )
+        }
         expect(config.optimizeDeps.include.includes('react-dom/client')).toBe(react === 'present')
       }
     } finally {

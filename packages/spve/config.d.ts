@@ -133,6 +133,7 @@ export type SpveBooleanProperty = SpvePropertyBase<'boolean', boolean> & {
 }
 
 export type SpveJsonProperty = SpvePropertyBase<'json', SpveJsonValue> & {
+  parser?: { module: string; export: string }
   control?: SpveCustomControl
 }
 
