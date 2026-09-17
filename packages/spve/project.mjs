@@ -11,6 +11,8 @@ import {
 } from 'node:fs'
 import { fileURLToPath, pathToFileURL } from 'node:url'
 import path from 'node:path'
+import { isJsonValue, parseProperty } from './properties.mjs'
+import { build } from 'vite-plus'
 
 const template = fileURLToPath(new URL('./template/webpart', import.meta.url))
 const stateVersion = 1
@@ -42,22 +44,6 @@ function propertyControl(property) {
 
 function optionValue(option) {
   return option?.value
-}
-
-function isJsonValue(value, ancestors = new Set()) {
-  if (value === null || ['string', 'boolean'].includes(typeof value)) return true
-  if (typeof value === 'number') return Number.isFinite(value)
-  if (typeof value !== 'object' || ancestors.has(value)) return false
-  if (!Array.isArray(value)) {
-    const prototype = Object.getPrototypeOf(value)
-    if (prototype !== Object.prototype && prototype !== null) return false
-  }
-  ancestors.add(value)
-  const valid = Array.isArray(value)
-    ? value.every((entry) => isJsonValue(entry, ancestors))
-    : Object.values(value).every((entry) => isJsonValue(entry, ancestors))
-  ancestors.delete(value)
-  return valid
 }
 
 function validateOptions(name, property, control) {
@@ -149,6 +135,18 @@ function propertyType(name, property) {
     (typeof property.control.editor !== 'string' || !property.control.editor.trim())
   ) {
     throw new Error(`SPVE: custom property ${JSON.stringify(name)} needs an editor name`)
+  }
+  if (
+    property.parser !== undefined &&
+    (property.type !== 'json' ||
+      !property.parser.module?.startsWith('./') ||
+      property.parser.module.split('/').includes('..') ||
+      typeof property.parser.export !== 'string' ||
+      !property.parser.export)
+  ) {
+    throw new Error(
+      `SPVE: property ${name} needs a JSON parser with a project-relative module and export name`,
+    )
   }
   if (property.default !== undefined) {
     const valid =
@@ -475,7 +473,7 @@ function propertyPaneSource(properties, pane) {
     type: Object.entries(properties)
       .map(
         ([name, property]) =>
-          `  ${JSON.stringify(name)}${property.required ? '' : '?'}: ${propertyTsType(name, property)}`,
+          `  ${JSON.stringify(name)}${property.required ? '' : '?'}: ${property.parser ? 'unknown' : propertyTsType(name, property)}`,
       )
       .join('\n'),
   }
@@ -485,7 +483,7 @@ function generatedClientTypes(properties) {
   const members = Object.entries(properties)
     .map(
       ([name, property]) =>
-        `    ${JSON.stringify(name)}${property.required ? '' : '?'}: ${propertyTsType(name, property)}`,
+        `    ${JSON.stringify(name)}${property.required ? '' : '?'}: ${property.parser ? `ReturnType<typeof import(${JSON.stringify(`../${property.parser.module.slice(2)}`)})[${JSON.stringify(property.parser.export)}]>` : propertyTsType(name, property)}`,
     )
     .join('\n')
   return `export {}\n\ndeclare global {\n  interface SpveAppProps {\n${members}\n  }\n}\n`
@@ -623,10 +621,76 @@ function writeIfChanged(file, contents) {
   return true
 }
 
-export function prepareWebpart(root, config) {
+export async function prepareWebpart(root, config) {
   const generatedRoot = path.join(root, '.spve')
   const stateFile = path.join(generatedRoot, 'state.json')
-  const generated = generatedFiles(config)
+  const normalized = normalizeConfig(config)
+  const properties = { ...normalized.webpart.properties }
+  const parsers = Object.entries(properties).filter(([, property]) => property.parser)
+  let parserSource = ''
+  const parserInputs = []
+  if (parsers.length) {
+    const imports = parsers.map(
+      ([, property], index) =>
+        `import { ${JSON.stringify(property.parser.export)} as parser${index} } from ${JSON.stringify(path.resolve(root, property.parser.module))}`,
+    )
+    parserSource =
+      imports.join('\n') +
+      `\nexport default {${parsers.map(([name], index) => `${JSON.stringify(name)}: parser${index}`).join(',')}}`
+    const bundled = await build({
+      root,
+      configFile: false,
+      logLevel: 'silent',
+      plugins: [
+        {
+          name: 'spve-parsers',
+          resolveId(id) {
+            if (id === 'virtual:spve-parsers' || id.endsWith('/virtual:spve-parsers'))
+              return '\0spve-parsers'
+          },
+          load(id) {
+            if (id === '\0spve-parsers') return parserSource
+          },
+          moduleParsed(info) {
+            if (path.isAbsolute(info.id)) parserInputs.push(info.id)
+          },
+        },
+      ],
+      build: {
+        write: false,
+        minify: false,
+        target: 'esnext',
+        lib: { entry: 'virtual:spve-parsers', formats: ['es'] },
+      },
+    })
+    const output = (Array.isArray(bundled) ? bundled[0] : bundled).output.find(
+      (file) => file.type === 'chunk' && file.isEntry,
+    )
+    const loaded = await import(
+      `data:text/javascript;base64,${Buffer.from(output.code).toString('base64')}`
+    )
+    for (const [name, property] of parsers) {
+      if (typeof loaded.default[name] !== 'function')
+        throw new Error(`SPVE: parser for ${name} is not a function`)
+      if (property.default !== undefined)
+        properties[name] = {
+          ...property,
+          default: parseProperty(name, property.default, loaded.default[name]),
+        }
+    }
+  }
+  const generated = generatedFiles({
+    ...normalized,
+    webpart: { ...normalized.webpart, properties },
+  })
+  if (parsers.length) {
+    generated.files.set(
+      'parsers.mjs',
+      parserSource +
+        `\n// Sources: ${fingerprint(new Map(parserInputs.map((file) => [file, readFileSync(file, 'utf8')])))}\n`,
+    )
+    generated.files.set('parser-inputs.json', json(parserInputs))
+  }
   const scaffold = fingerprint(generated.files)
   let previous = {}
   try {

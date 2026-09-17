@@ -11,7 +11,7 @@ if (command === 'prepare-toolchain') {
 } else if (command === 'prepare') {
   const root = process.cwd()
   const config = await loadSpveConfig(root)
-  const webpart = prepareWebpart(root, config)
+  const webpart = await prepareWebpart(root, config)
   if (process.env.SPVE_PREPARE_PROJECT_ONLY !== '1') await ensureToolchain(webpart)
 } else {
   console.error('Usage: spve prepare')

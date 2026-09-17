@@ -260,3 +260,39 @@ pane: {
 
 A declared layout must include each visible field exactly once. Without a layout,
 SPVE keeps its existing single page and group.
+
+### Typed JSON properties
+
+A JSON property can name a synchronous parser from a project source module:
+
+```ts
+views: {
+  type: 'json',
+  default: [],
+  parser: { module: './src/views.ts', export: 'parseViews' },
+  control: { type: 'custom', editor: 'views' },
+}
+```
+
+```ts
+export function parseViews(value: unknown): { name: string }[] {
+  if (
+    !Array.isArray(value) ||
+    value.some((view) => !view || typeof view !== 'object' || typeof view.name !== 'string')
+  )
+    throw new Error('Each view needs a name')
+  return value
+}
+```
+
+The generated application type uses the parser's return type. SPVE validates
+defaults during preparation and includes the parser in the application bundle for
+host-loaded values and editor changes. Parser inputs are copied; failures identify
+the property and preserve saved data. Missing optional properties remain absent.
+Properties without parsers retain default-based inference.
+
+Parser modules must work without browser initialization or network requests.
+Return JSON-compatible values synchronously. Normalization must be idempotent
+because the same value can pass validation at preparation, loading, and editing.
+Imported parser sources are watched in development and rebuild default validation
+when changed. No validation library is required.
