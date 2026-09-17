@@ -9,3 +9,5 @@ export function defineSvelteApp<
   component: Component<{ properties: Readable<Props> }>,
   ...plugins: readonly SpvePlugin[]
 ): SpveApp<Props, ModuleServices>
+
+export function getServices(): Readable<Readonly<Services>>

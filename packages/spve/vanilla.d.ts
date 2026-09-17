@@ -5,6 +5,6 @@ export function defineVanillaApp<
   Context = unknown,
   ModuleServices extends Services = Services,
 >(
-  render: (props: Readonly<Props>, context: Context) => Node,
+  render: (props: Readonly<Props>, context: Context, services: Readonly<ModuleServices>) => Node,
   ...plugins: readonly SpvePlugin[]
 ): SpveApp<Props, ModuleServices>

@@ -6,37 +6,46 @@ import { applyAppPlugins, initializeSP } from './runtime.mjs'
 const SpContext = createContext(undefined)
 
 export function useSpveContext() {
+  return useServices()?.context
+}
+
+export function useServices() {
   return useContext(SpContext)
 }
 
 export function defineReactApp(definition, ...plugins) {
-  const render =
-    typeof definition === 'function'
-      ? ({ props }) => createElement(definition, props)
-      : definition.render
-  const initialize = typeof definition === 'function' ? undefined : definition.initialize
+  const isComponent = typeof definition === 'function' || Boolean(definition?.$$typeof)
+  const render = isComponent ? ({ props }) => createElement(definition, props) : definition.render
+  const initialize = isComponent ? undefined : definition.initialize
 
-  return applyAppPlugins({
-    mount(initialContext) {
-      initializeSP(initialContext.services.sp)
-      initialize?.(initialContext)
+  return applyAppPlugins(
+    {
+      mount(initialContext) {
+        initializeSP(initialContext.services.sp)
+        initialize?.(initialContext)
 
-      const root = createRoot(initialContext.element)
-      let context = initialContext
-      const update = () =>
-        root.render(
-          createElement(SpContext.Provider, { value: context.services.context }, render(context)),
-        )
+        const root = createRoot(initialContext.element)
+        let context = initialContext
+        const update = () =>
+          root.render(
+            createElement(SpContext.Provider, { value: context.services }, render(context)),
+          )
 
-      update()
+        update()
 
-      return {
-        setProps(props) {
-          context = { ...context, props }
-          update()
-        },
-        unmount: () => root.unmount(),
-      }
+        return {
+          update(props, services) {
+            context = { ...context, props, services }
+            update()
+          },
+          setProps(props) {
+            context = { ...context, props }
+            update()
+          },
+          unmount: () => root.unmount(),
+        }
+      },
     },
-  }, plugins)
+    plugins,
+  )
 }

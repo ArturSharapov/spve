@@ -12,7 +12,10 @@ export interface ReactAppDefinition<
 export function defineReactApp<
   Props extends object = AppProps,
   ModuleServices extends Services = Services,
->(component: ComponentType<Props>, ...plugins: readonly SpvePlugin[]): SpveApp<Props, ModuleServices>
+>(
+  component: ComponentType<Props>,
+  ...plugins: readonly SpvePlugin[]
+): SpveApp<Props, ModuleServices>
 
 export function defineReactApp<
   Props extends object = AppProps,
@@ -21,3 +24,5 @@ export function defineReactApp<
   definition: ReactAppDefinition<Props, ModuleServices>,
   ...plugins: readonly SpvePlugin[]
 ): SpveApp<Props, ModuleServices>
+
+export function useServices(): Readonly<Services>

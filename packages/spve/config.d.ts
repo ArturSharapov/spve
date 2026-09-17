@@ -1,3 +1,7 @@
+export type SpveLocalizedText =
+  | string
+  | { readonly default: string; readonly [locale: string]: string }
+
 export type SpveJsonValue =
   | string
   | number
@@ -18,7 +22,7 @@ type SpvePropertyRequirement<TValue> =
 
 type SpvePropertyBase<TType extends string, TValue> = {
   type: TType
-  label?: string
+  label?: SpveLocalizedText
 } & SpvePropertyRequirement<TValue>
 
 export interface SpveCustomControl {
@@ -34,7 +38,7 @@ interface SpveAccessibleControl {
 
 export interface SpveTextControl extends SpveAccessibleControl {
   type: 'text'
-  description?: string
+  description?: SpveLocalizedText
   multiline?: boolean
   readOnly?: boolean
   resizable?: boolean
@@ -54,7 +58,7 @@ export interface SpveTextControl extends SpveAccessibleControl {
 
 export interface SpveDropdownValueOption<TValue extends string | number> {
   value: TValue
-  label?: string
+  label?: SpveLocalizedText
   header?: string
   dividerBefore?: boolean
   dividerAfter?: boolean
@@ -73,7 +77,7 @@ export interface SpveDropdownControl<TValue extends string | number> extends Spv
 
 export interface SpveChoiceOption<TValue extends string | number> {
   value: TValue
-  label: string
+  label: SpveLocalizedText
   icon?: string
   imageSrc?: string
   selectedImageSrc?: string
@@ -152,8 +156,8 @@ export type SpveSupportedHost =
 
 export interface SpveConfig {
   name: string
-  title: string
-  description?: string
+  title: SpveLocalizedText
+  description?: SpveLocalizedText
   version: string
   ids: {
     component: string
@@ -164,11 +168,12 @@ export interface SpveConfig {
     siteUrl: string
     vitePort: number
     spfxPort: number
+    host?: Partial<import('./index.js').SpveHostState>
   }
   webpart: {
     alias: string
     icon?: string
-    group?: string
+    group?: SpveLocalizedText
     groupId?: string
     supportedHosts?: readonly SpveSupportedHost[]
     supportsFullBleed?: boolean
@@ -178,8 +183,8 @@ export interface SpveConfig {
     pane?: {
       reactive?: boolean
       pages?: readonly {
-        description?: string
-        groups: readonly { name: string; fields: readonly string[] }[]
+        description?: SpveLocalizedText
+        groups: readonly { name: SpveLocalizedText; fields: readonly string[] }[]
       }[]
     }
   }

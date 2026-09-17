@@ -5,3 +5,5 @@ export function defineSolidApp<
   Props extends object = AppProps,
   ModuleServices extends Services = Services,
 >(component: Component<Props>, ...plugins: readonly SpvePlugin[]): SpveApp<Props, ModuleServices>
+
+export function useServices(): Readonly<Services>

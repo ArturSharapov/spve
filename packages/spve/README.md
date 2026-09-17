@@ -335,3 +335,30 @@ the shared toolchain descriptor and rejects changes to pinned packages. The same
 descriptor is used during preparation, development, and packaging. Its cache hash
 does not lock transitive dependency versions. Follow the native lifecycle's
 `super` requirements and retain SPVE initialization and disposal.
+
+## Live host information
+
+SPVE passes `services.host` with the current `displayMode`, UI `locale`, text
+`direction`, and theme colors. These are host services, not saved properties.
+React, Preact, Vue, Solid, and Qwik expose `useServices()` from their adapter entry.
+Read reactive values where the framework tracks them. Svelte exposes
+`getServices()`, a readable store. Vanilla and Lit render callbacks receive
+services as their third argument. React definition objects also receive them in
+`render(context)`.
+
+Built-in instances accept `update(props, services)` without replacing their
+framework root. `setProps` remains supported. Older custom instances without
+`update` receive props only. SPFx may itself recreate a web part during a mode
+change; that destroys the previous instance's local state.
+
+Existing Qwik applications must update their bridge to provide `ServicesContext`
+from a shallow `useStore` initialized with `initialServices`, and copy
+`event.services` into it alongside the existing property update. The starter
+includes this bridge. Keep a DOM element in the bridge component so Qwik can
+attach its window listener. Pending updates are ignored after disposal.
+
+Standalone development defaults to read mode, `en-US`, and left-to-right text.
+Override these through `dev.host`. Pane labels, descriptions, groups, and manifest
+title/description can use `{ default: 'Settings', pl: 'Ustawienia' }`. Pane labels
+select the exact UI culture, then its language, then `default`. Existing strings
+and `{locale}` resource files continue to work.

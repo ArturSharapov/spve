@@ -19,3 +19,5 @@ export function defineVueApp<
 >(component: Component<Props>, ...plugins: readonly SpvePlugin[]): SpveApp<Props, ModuleServices>
 
 export default properties
+
+export function useServices(): Readonly<Services>

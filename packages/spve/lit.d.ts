@@ -5,6 +5,6 @@ export function defineLitApp<
   Context = unknown,
   ModuleServices extends Services = Services,
 >(
-  app: (props: Readonly<Props>, context: Context) => unknown,
+  app: (props: Readonly<Props>, context: Context, services: Readonly<ModuleServices>) => unknown,
   ...plugins: readonly SpvePlugin[]
 ): SpveApp<Props, ModuleServices>

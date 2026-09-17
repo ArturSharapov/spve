@@ -68,6 +68,7 @@ function spvePlugin() {
   let parserFile
   let parserInputs = []
   let parserProperties = {}
+  let standaloneHost = {}
   let hostDirectory
 
   return {
@@ -133,6 +134,12 @@ function spvePlugin() {
         ]),
       )
       webpart = await prepareWebpart(root, settings)
+      standaloneHost = {
+        displayMode: 'read',
+        locale: 'en-US',
+        direction: 'ltr',
+        ...normalized.dev.host,
+      }
       hostDirectory = normalized.host
         ? path.dirname(path.resolve(root, normalized.host.entry))
         : undefined
@@ -316,7 +323,7 @@ function spvePlugin() {
           app.mount({
             element: document.querySelector('#spve-local'),
             props: parseProperties(${JSON.stringify(applicationProps)}),
-            services: { sp: await createMsalSP(${JSON.stringify(sharePointSiteUrl)}) },
+            services: { sp: await createMsalSP(${JSON.stringify(sharePointSiteUrl)}), host: ${JSON.stringify(standaloneHost)} },
           })
         `
       }
@@ -349,6 +356,11 @@ function spvePlugin() {
               mounts.add(mount)
 
               return {
+                update(props, services) {
+                  mount.context = { ...mount.context, props, services }
+                  if (mount.instance.update) mount.instance.update(props, services)
+                  else mount.instance.setProps(props)
+                },
                 setProps(props) {
                   mount.context = { ...mount.context, props }
                   mount.instance.setProps(props)
