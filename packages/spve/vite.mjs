@@ -32,9 +32,8 @@ function conciseError(message) {
 
 const projectDefaults = {
   optimizeDeps: {
-    // The React adapter imports plugin-react's virtual preamble module, which must be resolved by
-    // Vite rather than dependency-prebundled as ordinary package source.
-    exclude: ['spve/react', '@spve/core/react', 'spve/react/context', '@spve/core/react/context'],
+    // Keep the public client and adapters in one runtime; Vite also resolves their virtual imports.
+    exclude: ['sp', 'spve', '@spve/core'],
   },
   fmt: {
     ignorePatterns: ['.spve/**', 'pnpm-lock.yaml', 'pnpm-workspace.yaml'],
@@ -67,6 +66,16 @@ function spvePlugin() {
   return {
     name: 'spve',
     enforce: 'pre',
+
+    configResolved(config) {
+      for (const entry of config.optimizeDeps.include ?? []) {
+        if (/^(sp|spve|@spve\/core)(\/|$)/.test(entry.split('>').at(-1).trim())) {
+          throw conciseError(
+            `SPVE: remove ${JSON.stringify(entry)} from optimizeDeps.include; SPVE modules must share the unoptimized runtime`,
+          )
+        }
+      }
+    },
 
     async config(config, environment) {
       const root = path.resolve(config.root ?? process.cwd())
