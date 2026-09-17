@@ -362,3 +362,24 @@ Override these through `dev.host`. Pane labels, descriptions, groups, and manife
 title/description can use `{ default: 'Settings', pl: 'Ustawienia' }`. Pane labels
 select the exact UI culture, then its language, then `default`. Existing strings
 and `{locale}` resource files continue to work.
+
+### Upgrading saved settings
+
+A product that changes a saved property format can override SPFx's `dataVersion`
+and synchronous `onAfterDeserialize` in its host subclass. The executable example
+in `examples/saved-settings/host/WebPart.ts` upgrades a version 1.0 `listId` string
+to a version 2.0 `listIds` array. Use it with
+`host: { entry: './host/WebPart.ts' }` after placing it in your project.
+Declare the current `listIds` property as `{ type: 'json', default: [], required: true }`.
+A migration must also return any other required properties declared by its project.
+
+For `{ listId: 'news', title: 'Latest' }`, it returns
+`{ listIds: ['news'], title: 'Latest' }`. It deliberately removes the old `listId`
+field and preserves other fields. Current data is validated without migration;
+unsupported newer versions and malformed values produce property/version errors.
+The input object is not modified.
+
+Migration code is compiled into the native host so it runs before the application
+loads. Return synchronously, without network calls. Configured property parsers
+then validate values before the application receives them. SPVE adds no migration
+registry, and hosts without an override retain data version 1.0.
