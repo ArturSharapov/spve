@@ -204,3 +204,31 @@ dev: {
 
 Standalone MSAL development reads the optional `VITE_AAD_TENANT_ID` and
 `VITE_AAD_CLIENT_ID` values from `.env.local`.
+
+## Custom property editors
+
+Export an `editors` object from your application entry. Each editor is an ordinary
+application made with a framework adapter. Select it in a property declaration:
+
+```ts
+views: {
+  type: 'json',
+  default: [],
+  control: { type: 'custom', editor: 'views' },
+}
+```
+
+For example, a React editor receives `SpveEditorProps<View[]>` as its props:
+
+```tsx
+export const editors = {
+  views: defineReactApp<SpveEditorProps<View[]>>(ViewsEditor),
+}
+```
+
+The props contain `value`, `onChange(value, valid?)`, `disabled`, and a snapshot of
+current properties. Emit replacement values instead of mutating the supplied
+objects. Services use the same mount context as the main application. SPVE loads
+the editor before opening the pane, keeps its mount across field refreshes, and
+disposes it when the pane closes. React editors use the application's React
+renderer, independently of SPFx's property-pane renderer.

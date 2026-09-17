@@ -208,3 +208,30 @@ describe('property validation', () => {
     expect(() => normalizeConfig(config)).toThrow(/must be an option/)
   })
 })
+
+test('generates custom editor fields without changing the saved property shape', () => {
+  const root = mkdtempSync(path.join(tmpdir(), 'spve-editor-'))
+  const config = projectConfig()
+  config.webpart.properties.settings.control = { type: 'custom', editor: 'settings' }
+  try {
+    prepareWebpart(root, config)
+    const host = readFileSync(
+      path.join(root, '.spve/webpart/src/webparts/spve/SpveWebPart.ts'),
+      'utf8',
+    )
+    expect(host).toContain('this.editorField("settings", "settings", false)')
+    const manifest = JSON.parse(
+      readFileSync(
+        path.join(root, '.spve/webpart/src/webparts/spve/SpveWebPart.manifest.json'),
+        'utf8',
+      ),
+    )
+    expect(manifest.preconfiguredEntries[0].properties.settings).toEqual(
+      config.webpart.properties.settings.default,
+    )
+    config.webpart.properties.settings.control.editor = ''
+    expect(() => normalizeConfig(config)).toThrow(/needs an editor name/)
+  } finally {
+    rmSync(root, { recursive: true, force: true })
+  }
+})

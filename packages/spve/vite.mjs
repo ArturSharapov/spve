@@ -277,16 +277,17 @@ function spvePlugin() {
 
       if (id === resolvedVirtualSharePoint) {
         return `
-          import initialModule from ${JSON.stringify(applicationEntry)}
+          import * as initialModule from ${JSON.stringify(applicationEntry)}
 
           let currentModule = initialModule
           const mounts = new Set()
 
-          const app = {
+          function wrapApp(name) { return {
             mount(context) {
               const mount = {
+                name,
                 context,
-                instance: currentModule.mount(context),
+                instance: (name === undefined ? currentModule.default : currentModule.editors[name]).mount(context),
               }
               mounts.add(mount)
 
@@ -303,6 +304,10 @@ function spvePlugin() {
             },
           }
 
+          }
+          const app = wrapApp()
+          export const editors = Object.fromEntries(Object.keys(initialModule.editors ?? {}).map(name => [name, wrapApp(name)]))
+
           if (import.meta.hot && location.origin === ${JSON.stringify(sharePointOrigin)}) {
             import.meta.hot.on('vite:beforeUpdate', () => {
               document.querySelectorAll('vite-error-overlay').forEach(overlay => overlay.remove())
@@ -310,11 +315,11 @@ function spvePlugin() {
 
             import.meta.hot.accept(${JSON.stringify(applicationEntry)}, module => {
               if (!module?.default) return
-              currentModule = module.default
+              currentModule = module
 
               for (const mount of mounts) {
                 mount.instance.unmount()
-                mount.instance = currentModule.mount(mount.context)
+                mount.instance = (mount.name === undefined ? currentModule.default : currentModule.editors[mount.name]).mount(mount.context)
               }
             })
           }

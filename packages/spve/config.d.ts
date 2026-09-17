@@ -21,6 +21,12 @@ type SpvePropertyBase<TType extends string, TValue> = {
   label?: string
 } & SpvePropertyRequirement<TValue>
 
+export interface SpveCustomControl {
+  type: 'custom'
+  editor: string
+  disabled?: boolean
+}
+
 interface SpveAccessibleControl {
   ariaLabel?: string
   disabled?: boolean
@@ -107,19 +113,27 @@ export interface SpveCheckboxControl extends SpveAccessibleControl {
 }
 
 export type SpveStringProperty = SpvePropertyBase<'string', string> & {
-  control?: SpveTextControl | SpveDropdownControl<string> | SpveChoiceGroupControl<string>
+  control?:
+    | SpveCustomControl
+    | SpveTextControl
+    | SpveDropdownControl<string>
+    | SpveChoiceGroupControl<string>
 }
 
 export type SpveNumberProperty = SpvePropertyBase<'number', number> & {
-  control?: SpveSliderControl | SpveDropdownControl<number> | SpveChoiceGroupControl<number>
+  control?:
+    | SpveCustomControl
+    | SpveSliderControl
+    | SpveDropdownControl<number>
+    | SpveChoiceGroupControl<number>
 }
 
 export type SpveBooleanProperty = SpvePropertyBase<'boolean', boolean> & {
-  control?: SpveToggleControl | SpveCheckboxControl
+  control?: SpveCustomControl | SpveToggleControl | SpveCheckboxControl
 }
 
 export type SpveJsonProperty = SpvePropertyBase<'json', SpveJsonValue> & {
-  control?: never
+  control?: SpveCustomControl
 }
 
 export type SpveProperty =
