@@ -34,12 +34,7 @@ const projectDefaults = {
   optimizeDeps: {
     // The React adapter imports plugin-react's virtual preamble module, which must be resolved by
     // Vite rather than dependency-prebundled as ordinary package source.
-    exclude: [
-      'spve/react',
-      '@spve/core/react',
-      'spve/react/context',
-      '@spve/core/react/context',
-    ],
+    exclude: ['spve/react', '@spve/core/react', 'spve/react/context', '@spve/core/react/context'],
   },
   fmt: {
     ignorePatterns: ['.spve/**', 'pnpm-lock.yaml', 'pnpm-workspace.yaml'],
@@ -75,6 +70,14 @@ function spvePlugin() {
 
     async config(config, environment) {
       const root = path.resolve(config.root ?? process.cwd())
+      const require = createRequire(path.join(root, 'package.json'))
+      let reactClient = false
+      try {
+        require.resolve('react-dom/client')
+        reactClient = true
+      } catch (error) {
+        if (error.code !== 'MODULE_NOT_FOUND') throw error
+      }
       projectConfigFile = path.join(root, 'spve.config.ts')
       const settings = await loadSpveConfig(root)
       if (!settings.dev?.siteUrl) {
@@ -121,6 +124,7 @@ function spvePlugin() {
         : undefined
 
       return {
+        optimizeDeps: { include: reactClient ? ['react-dom/client'] : [] },
         base: spDevelopment ? '/__spve/' : undefined,
         resolve: {
           alias: {
