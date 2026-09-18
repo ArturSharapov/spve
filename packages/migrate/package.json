@@ -35,7 +35,7 @@
     "release:dry": "vp pm publish --dry-run --access public --no-git-checks"
   },
   "dependencies": {
-    "create-sp": "^0.0.8",
+    "create-sp": "^0.0.9",
     "typescript": "^6.0.3"
   },
   "engines": {

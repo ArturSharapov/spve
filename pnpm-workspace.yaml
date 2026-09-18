@@ -8,7 +8,7 @@ catalogMode: prefer
 catalog:
   '@types/node': ^24
   '@types/react': ^19.3.0
-  create-sp: ^0.0.8
+  create-sp: ^0.0.9
   typescript: ^7.0.2
   vite: npm:@voidzero-dev/vite-plus-core@0.2.8
   vite-plus: 0.2.8
