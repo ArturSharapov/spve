@@ -177,16 +177,30 @@ onBeforeUnmount(() => {
               <h3 class="startup-primary-claim">See changes instantly</h3>
               <div class="startup-live-scene" aria-hidden="true">
                 <div class="startup-editor-mini">
-                  <header><i /><i /><i /></header>
-                  <span /><span class="startup-changed-line"><i /></span><span /><span />
+                  <header>
+                    <i />
+                    <i />
+                    <i />
+                  </header>
+                  <span />
+                  <span class="startup-changed-line"><i /></span>
+                  <span />
+                  <span />
                 </div>
                 <div class="startup-update-indicator"><span /></div>
                 <div class="startup-preview-mini startup-preview-preserved">
-                  <header><i /><span /></header>
+                  <header>
+                    <i />
+                    <span />
+                  </header>
                   <div class="preview-component">
                     <span class="preview-heading" />
                     <span class="preview-input is-populated is-updated"><i /></span>
-                    <span class="preview-selection"><i class="is-selected" /><i /><i /></span>
+                    <span class="preview-selection">
+                      <i class="is-selected" />
+                      <i />
+                      <i />
+                    </span>
                     <span class="preview-toggle is-on"><i /></span>
                   </div>
                 </div>
@@ -212,9 +226,18 @@ onBeforeUnmount(() => {
                 </strong>
               </div>
               <ol class="startup-reload-stages">
-                <li><i /><strong>Wait for page reload to begin</strong></li>
-                <li><i /><strong>Wait for page to fully load</strong></li>
-                <li><i /><strong>Wait for webpart to mount</strong></li>
+                <li>
+                  <i />
+                  <strong>Wait for page reload to begin</strong>
+                </li>
+                <li>
+                  <i />
+                  <strong>Wait for page to fully load</strong>
+                </li>
+                <li>
+                  <i />
+                  <strong>Wait for webpart to mount</strong>
+                </li>
               </ol>
               <div class="startup-wait-pipeline" aria-hidden="true">
                 <svg
@@ -279,44 +302,65 @@ onBeforeUnmount(() => {
             <section class="startup-lane startup-lane-spve startup-lane-state">
               <div class="startup-state-scene" aria-hidden="true">
                 <div class="startup-preview-mini startup-preview-preserved">
-                  <header><i /><span /></header>
+                  <header>
+                    <i />
+                    <span />
+                  </header>
                   <div class="preview-component">
-                    <span class="preview-heading is-customized"
-                      ><span class="preview-entered-text">42</span><i class="preview-value-caret"
-                    /></span>
-                    <span class="preview-input is-populated"
-                      ><span class="preview-entered-text">hello</span
-                      ><i class="preview-value-caret"
-                    /></span>
-                    <span class="preview-selection"
-                      ><i>A</i><i>B</i><i class="is-selected">C</i></span
-                    >
+                    <span class="preview-heading is-customized">
+                      <span class="preview-entered-text">42</span>
+                      <i class="preview-value-caret" />
+                    </span>
+                    <span class="preview-input is-populated">
+                      <span class="preview-entered-text">hello</span>
+                      <i class="preview-value-caret" />
+                    </span>
+                    <span class="preview-selection">
+                      <i>A</i>
+                      <i>B</i>
+                      <i class="is-selected">C</i>
+                    </span>
                   </div>
                 </div>
               </div>
               <ul class="startup-outcomes">
-                <li><i class="literal-check" /><strong>State is preserved</strong></li>
-                <li><i class="literal-check" /><strong>User input is preserved</strong></li>
+                <li>
+                  <i class="literal-check" />
+                  <strong>State is preserved</strong>
+                </li>
+                <li>
+                  <i class="literal-check" />
+                  <strong>User input is preserved</strong>
+                </li>
               </ul>
             </section>
 
             <section class="startup-lane startup-lane-classic startup-lane-state">
               <div class="startup-state-scene" aria-hidden="true">
                 <div class="startup-preview-mini startup-preview-reset">
-                  <header><i /><span /></header>
+                  <header>
+                    <i />
+                    <span />
+                  </header>
                   <div class="preview-component">
                     <span class="preview-heading is-reset"><i class="preview-value-caret" /></span>
                     <span class="preview-input is-empty"><i class="preview-value-caret" /></span>
-                    <span class="preview-selection"><i>A</i><i>B</i><i>C</i></span>
+                    <span class="preview-selection">
+                      <i>A</i>
+                      <i>B</i>
+                      <i>C</i>
+                    </span>
                   </div>
                 </div>
               </div>
               <ul class="startup-outcomes startup-outcomes-lost">
-                <li><i class="literal-cross" /><strong>State is lost</strong></li>
                 <li>
-                  <i class="literal-cross" /><strong
-                    >User input is lost (forms, selections, etc.)</strong
-                  >
+                  <i class="literal-cross" />
+                  <strong>State is lost</strong>
+                </li>
+                <li>
+                  <i class="literal-cross" />
+                  <strong>User input is lost (forms, selections, etc.)</strong>
                 </li>
               </ul>
             </section>
@@ -349,11 +393,11 @@ onBeforeUnmount(() => {
             data-scroll-framework-row
           >
             <div class="comparison-side comparison-side-spve">
-              <span class="comparison-label"
-                ><span class="comparison-label-line" data-scroll-framework-text>{{
-                  item.spve
-                }}</span></span
-              >
+              <span class="comparison-label">
+                <span class="comparison-label-line" data-scroll-framework-text>
+                  {{ item.spve }}
+                </span>
+              </span>
               <span class="comparison-mark comparison-mark-check" aria-hidden="true">
                 <svg viewBox="0 0 24 24" fill="none">
                   <path
@@ -378,11 +422,11 @@ onBeforeUnmount(() => {
                   />
                 </svg>
               </span>
-              <span class="comparison-label"
-                ><span class="comparison-label-line" data-scroll-framework-text>{{
-                  item.classic
-                }}</span></span
-              >
+              <span class="comparison-label">
+                <span class="comparison-label-line" data-scroll-framework-text>
+                  {{ item.classic }}
+                </span>
+              </span>
             </div>
           </li>
         </ul>
@@ -491,7 +535,12 @@ onBeforeUnmount(() => {
           <section class="workspace-surface workspace-surface-spve">
             <ComparisonParty label="Using SPVE" />
             <div class="workspace-body">
-              <div class="workspace-tree" aria-hidden="true"><i /><i /><i /><i /></div>
+              <div class="workspace-tree" aria-hidden="true">
+                <i />
+                <i />
+                <i />
+                <i />
+              </div>
               <ul>
                 <li>Clean app workspace</li>
                 <li>One configuration</li>
@@ -1245,12 +1294,18 @@ onBeforeUnmount(() => {
       </article>
 
       <section id="quickstart" class="experience-quickstart" data-modern-reveal>
-        <span class="showcase-number"><span>One command</span> is all it takes</span>
+        <span class="showcase-number">
+          <span>One command</span>
+          is all it takes
+        </span>
         <h2>Quick start</h2>
 
         <div class="quickstart-command">
           <span aria-hidden="true">$</span>
-          <code><strong>npm</strong> init sp</code>
+          <code>
+            <strong>npm</strong>
+            init sp
+          </code>
           <button
             type="button"
             :class="{ 'is-copied': commandCopied }"

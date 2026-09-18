@@ -2,6 +2,7 @@ import { defineConfig } from 'vite-plus'
 
 export default defineConfig({
   fmt: {
+    htmlWhitespaceSensitivity: 'ignore',
     semi: false,
     singleQuote: true,
     sortPackageJson: true,
