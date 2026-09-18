@@ -14,6 +14,8 @@ dist-ssr
 .cache
 .spve
 *.tgz
+apps/website/src/**/*.vue.js
+apps/website/src/main.js
 
 # dotenv environment variable files
 .env

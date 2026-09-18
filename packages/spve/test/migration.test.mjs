@@ -1,8 +1,6 @@
 import { readFileSync } from 'node:fs'
-import { createRequire } from 'node:module'
+import ts from 'typescript-compiler'
 import { expect, test } from 'vite-plus/test'
-const require = createRequire(import.meta.url)
-const ts = require(require.resolve('typescript', { paths: [require.resolve('vite-plus')] }))
 const source = readFileSync(
   new URL('../examples/saved-settings/host/WebPart.ts', import.meta.url),
   'utf8',

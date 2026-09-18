@@ -8,6 +8,7 @@
     "dev": "vp dev apps/playground"
   },
   "devDependencies": {
+    "@types/react": "catalog:",
     "vite": "catalog:",
     "vite-plus": "catalog:"
   },
