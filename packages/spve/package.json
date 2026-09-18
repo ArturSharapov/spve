@@ -9,6 +9,11 @@
     "vite-plus"
   ],
   "license": "MIT",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/ArturSharapov/spve.git",
+    "directory": "packages/spve"
+  },
   "bin": {
     "spve": "./cli.mjs"
   },
@@ -118,8 +123,8 @@
     "react-dom": ">=18.0.0",
     "solid-js": ">=1.0.0",
     "svelte": ">=5.0.0",
-    "vue": ">=3.0.0",
-    "vite-plus": "^0.2.8"
+    "vite-plus": "^0.2.8",
+    "vue": ">=3.0.0"
   },
   "peerDependenciesMeta": {
     "@builder.io/qwik": {

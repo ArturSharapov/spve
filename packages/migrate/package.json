@@ -10,6 +10,11 @@
     "spve"
   ],
   "license": "MIT",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/ArturSharapov/spve.git",
+    "directory": "packages/migrate"
+  },
   "bin": {
     "migrate-sp": "bin/index.mjs"
   },

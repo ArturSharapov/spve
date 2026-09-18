@@ -10,11 +10,13 @@
     "vite-plus"
   ],
   "license": "MIT",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/ArturSharapov/spve.git",
+    "directory": "packages/create-sp"
+  },
   "bin": {
     "create-sp": "bin/index.mjs"
-  },
-  "exports": {
-    "./scaffold": "./scaffold.mjs"
   },
   "files": [
     "bin",
@@ -22,6 +24,9 @@
     "templates"
   ],
   "type": "module",
+  "exports": {
+    "./scaffold": "./scaffold.mjs"
+  },
   "publishConfig": {
     "access": "public"
   },

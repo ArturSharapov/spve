@@ -1,0 +1,61 @@
+name: Publish npm package
+
+on:
+  workflow_dispatch:
+    inputs:
+      package:
+        description: Package to publish
+        type: choice
+        options: [spve, create-sp, migrate]
+        required: true
+      version:
+        description: Exact version already committed in the package manifest
+        type: string
+        required: true
+
+permissions:
+  contents: read
+
+concurrency:
+  group: npm-publish
+  cancel-in-progress: false
+
+jobs:
+  verify:
+    if: github.ref == 'refs/heads/main'
+    uses: ./.github/workflows/ci.yml
+
+  publish:
+    needs: verify
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    environment: npm
+    permissions:
+      contents: read
+      id-token: write
+    env:
+      PACKAGE: ${{ inputs.package }}
+      VERSION: ${{ inputs.version }}
+    steps:
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262
+        with:
+          persist-credentials: false
+      - uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020
+        with:
+          node-version: '24'
+      - name: Validate release
+        run: |
+          node --input-type=module <<'NODE'
+          import assert from 'node:assert/strict'
+          import { readFileSync } from 'node:fs'
+          const names = { spve: '@spve/core', 'create-sp': 'create-sp', migrate: 'migrate-sp' }
+          const packageName = process.env.PACKAGE
+          assert.ok(Object.hasOwn(names, packageName), 'Unknown package')
+          const manifest = JSON.parse(readFileSync(`packages/${packageName}/package.json`, 'utf8'))
+          assert.equal(manifest.name, names[packageName])
+          assert.equal(manifest.version, process.env.VERSION, 'Commit the requested version first')
+          assert.match(manifest.version, /^\d+\.\d+\.\d+$/, 'Only stable releases may use the latest tag')
+          NODE
+      - name: Publish with trusted publishing
+        working-directory: packages/${{ inputs.package }}
+        run: npm publish --access public --provenance
