@@ -1,0 +1,54 @@
+name: Publish npm package
+run-name: Publish ${{ inputs.package }}@${{ inputs.version }}
+
+on:
+  workflow_dispatch:
+    inputs:
+      package:
+        description: Package to publish
+        type: choice
+        options: ['@spve/core', create-sp, migrate-sp]
+        required: true
+      version:
+        description: Next 0.0.x version selected by the release workflow
+        type: string
+        required: true
+
+permissions:
+  contents: read
+
+concurrency:
+  group: npm-publish
+  cancel-in-progress: false
+
+jobs:
+  verify:
+    if: github.ref == 'refs/heads/main'
+    uses: ./.github/workflows/ci.yml
+
+  publish:
+    needs: verify
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    environment: npm
+    permissions:
+      contents: read
+      id-token: write
+    env:
+      PACKAGE: ${{ inputs.package }}
+      VERSION: ${{ inputs.version }}
+    steps:
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262
+        with:
+          persist-credentials: false
+      - uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020
+        with:
+          node-version: '24'
+      - name: Validate and bump patch version
+        id: release
+        run: node .github/scripts/prepare-npm-release.mjs
+      - name: Publish with trusted publishing
+        working-directory: ${{ steps.release.outputs.directory }}
+        run: npm publish --access public --provenance
+      - name: Record published version
+        run: printf 'Published **%s@%s** to npm.\n' "$PACKAGE" "$VERSION" >> "$GITHUB_STEP_SUMMARY"

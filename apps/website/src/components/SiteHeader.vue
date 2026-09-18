@@ -101,8 +101,9 @@ onBeforeUnmount(() => {
         <span class="hidden sm:inline">Search</span>
         <kbd
           class="ml-auto hidden rounded border border-white/10 px-1.5 py-0.5 font-mono text-[0.62rem] text-mist/70 sm:inline-flex"
-          >⌘ K</kbd
         >
+          ⌘ K
+        </kbd>
       </button>
     </div>
   </header>

@@ -205,6 +205,9 @@ settings:
 
 catalogs:
   default:
+    '@types/react':
+      specifier: ^19.3.0
+      version: 19.3.0
     vite-plus:
       specifier: 0.2.8
       version: 0.2.8
@@ -216,6 +219,9 @@ importers:
 
   .:
     devDependencies:
+      '@types/react':
+        specifier: 'catalog:'
+        version: 19.3.0
       vite:
         specifier: npm:@voidzero-dev/vite-plus-core@0.2.8
         version: '@voidzero-dev/vite-plus-core@0.2.8(@types/node@26.1.2)(jiti@2.7.0)(typescript@7.0.2)(yaml@2.9.0)'
@@ -360,6 +366,9 @@ importers:
         specifier: '>=3.0.0'
         version: 3.5.41(typescript@7.0.2)
     devDependencies:
+      typescript-compiler:
+        specifier: npm:typescript@^6.0.3
+        version: typescript@6.0.3
       vite:
         specifier: npm:@voidzero-dev/vite-plus-core@0.2.8
         version: '@voidzero-dev/vite-plus-core@0.2.8(@types/node@26.1.2)(jiti@2.7.0)(typescript@7.0.2)(yaml@2.9.0)'
@@ -1859,6 +1868,9 @@ packages:
 
   '@types/react@17.0.93':
     resolution: {integrity: sha512-KM4Ty/ZTLZupiYxZVAlP+InNJS3De6uBMdq0ePa6/04+eG9Y7ftnWfst1xTLQ5rwAhgHwQ4momt/O4KepdGBTw==}
+
+  '@types/react@19.3.0':
+    resolution: {integrity: sha512-N0rFCuH9YoxG9/m61l9MfpJKfmLOVU0em7ipIz6TRgSSkvReLB9vL85GB+yr8Bs5leqpvg96JSwF4ZS1s4viQg==}
 
   '@types/requirejs@2.1.29':
     resolution: {integrity: sha512-61MNgoBY6iEsHhFGiElSjEu8HbHOahJLGh9BdGSfzgAN+2qOuFJKuG3f7F+/ggKr+0yEM3Y4fCWAgxU6es0otg==}
@@ -5526,6 +5538,10 @@ snapshots:
     dependencies:
       '@types/prop-types': 15.7.15
       '@types/scheduler': 0.16.8
+      csstype: 3.2.3
+
+  '@types/react@19.3.0':
+    dependencies:
       csstype: 3.2.3
 
   '@types/requirejs@2.1.29': {}

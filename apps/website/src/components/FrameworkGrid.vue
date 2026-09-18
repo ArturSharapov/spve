@@ -40,8 +40,9 @@ const installLines = [
             <span
               class="grid size-12 shrink-0 place-items-center rounded-xl border border-white/10 bg-black/20 font-display text-sm font-extrabold"
               :style="{ color: framework.color }"
-              >{{ framework.mark }}</span
             >
+              {{ framework.mark }}
+            </span>
             <div>
               <h3 class="font-display text-lg font-bold">{{ framework.name }}</h3>
               <p class="mt-1 text-xs text-mist">{{ framework.body }}</p>
@@ -70,12 +71,10 @@ const installLines = [
             class="mx-auto mt-9 max-w-xl overflow-hidden rounded-xl border border-white/10 bg-[#061018] text-left shadow-2xl"
           >
             <div class="flex items-center gap-2 border-b border-white/8 px-4 py-3">
-              <span class="size-2 rounded-full bg-[#ff6b6b]" /><span
-                class="size-2 rounded-full bg-[#ffd166]"
-              /><span class="size-2 rounded-full bg-[#42d392]" /><span
-                class="ml-2 font-mono text-[0.62rem] text-mist/55"
-                >terminal</span
-              >
+              <span class="size-2 rounded-full bg-[#ff6b6b]" />
+              <span class="size-2 rounded-full bg-[#ffd166]" />
+              <span class="size-2 rounded-full bg-[#42d392]" />
+              <span class="ml-2 font-mono text-[0.62rem] text-mist/55">terminal</span>
             </div>
             <div class="space-y-1 p-4 font-mono text-[0.7rem] leading-6 sm:p-5 sm:text-xs">
               <div
@@ -91,8 +90,9 @@ const installLines = [
                         ? 'text-[#42d392]'
                         : 'text-vite-bright'
                   "
-                  >{{ line.prefix }}</span
                 >
+                  {{ line.prefix }}
+                </span>
                 <span class="ml-3">{{ line.text }}</span>
               </div>
             </div>

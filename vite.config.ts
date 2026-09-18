@@ -2,6 +2,7 @@ import { defineConfig } from 'vite-plus'
 
 export default defineConfig({
   fmt: {
+    htmlWhitespaceSensitivity: 'ignore',
     semi: false,
     singleQuote: true,
     sortPackageJson: true,
@@ -10,6 +11,7 @@ export default defineConfig({
     ignorePatterns: [
       'apps/playground/.spve/**',
       'packages/create-sp/templates/**',
+      'packages/spve/examples/saved-settings/host/**',
       'packages/spve/template/**',
     ],
     jsPlugins: [{ name: 'vite-plus', specifier: 'vite-plus/oxlint-plugin' }],
