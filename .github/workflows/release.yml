@@ -1,0 +1,39 @@
+name: Release npm package
+run-name: Prepare release of ${{ inputs.package }}
+
+on:
+  workflow_dispatch:
+    inputs:
+      package:
+        description: Package to release with the next 0.0.x version
+        type: choice
+        options: ['@spve/core', create-sp, migrate-sp]
+        required: true
+
+permissions:
+  contents: read
+  actions: write
+
+jobs:
+  prepare:
+    if: github.ref == 'refs/heads/main'
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262
+        with:
+          persist-credentials: false
+      - uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020
+        with:
+          node-version: '24'
+      - name: Select next patch version
+        id: release
+        env:
+          PACKAGE: ${{ inputs.package }}
+        run: node .github/scripts/prepare-npm-release.mjs
+      - name: Start named publishing run
+        env:
+          GH_TOKEN: ${{ github.token }}
+          PACKAGE: ${{ inputs.package }}
+          VERSION: ${{ steps.release.outputs.version }}
+        run: gh workflow run publish.yml --ref main -f package="$PACKAGE" -f version="$VERSION"

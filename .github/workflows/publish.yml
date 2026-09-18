@@ -1,4 +1,5 @@
 name: Publish npm package
+run-name: Publish ${{ inputs.package }}@${{ inputs.version }}
 
 on:
   workflow_dispatch:
@@ -6,10 +7,10 @@ on:
       package:
         description: Package to publish
         type: choice
-        options: [spve, create-sp, migrate]
+        options: ['@spve/core', create-sp, migrate-sp]
         required: true
       version:
-        description: Exact version already committed in the package manifest
+        description: Next 0.0.x version selected by the release workflow
         type: string
         required: true
 
@@ -43,19 +44,11 @@ jobs:
       - uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020
         with:
           node-version: '24'
-      - name: Validate release
-        run: |
-          node --input-type=module <<'NODE'
-          import assert from 'node:assert/strict'
-          import { readFileSync } from 'node:fs'
-          const names = { spve: '@spve/core', 'create-sp': 'create-sp', migrate: 'migrate-sp' }
-          const packageName = process.env.PACKAGE
-          assert.ok(Object.hasOwn(names, packageName), 'Unknown package')
-          const manifest = JSON.parse(readFileSync(`packages/${packageName}/package.json`, 'utf8'))
-          assert.equal(manifest.name, names[packageName])
-          assert.equal(manifest.version, process.env.VERSION, 'Commit the requested version first')
-          assert.match(manifest.version, /^\d+\.\d+\.\d+$/, 'Only stable releases may use the latest tag')
-          NODE
+      - name: Validate and bump patch version
+        id: release
+        run: node .github/scripts/prepare-npm-release.mjs
       - name: Publish with trusted publishing
-        working-directory: packages/${{ inputs.package }}
+        working-directory: ${{ steps.release.outputs.directory }}
         run: npm publish --access public --provenance
+      - name: Record published version
+        run: printf 'Published **%s@%s** to npm.\n' "$PACKAGE" "$VERSION" >> "$GITHUB_STEP_SUMMARY"
