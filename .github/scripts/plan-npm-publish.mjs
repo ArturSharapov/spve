@@ -9,12 +9,34 @@ const packages = [
   { name: 'migrate-sp', directory: 'packages/migrate' },
 ]
 const releases = []
+const changes = new Map()
+const targetVersions = {}
 
 for (const { name, directory } of packages) {
   const manifestPath = `${directory}/package.json`
   const manifest = JSON.parse(readFileSync(manifestPath, 'utf8'))
   assert.equal(manifest.name, name)
   assert.match(manifest.version, /^0\.0\.(0|[1-9]\d*)$/, `${name} must stay in 0.0.x`)
+  let dependencyChanged = false
+  if (name === 'create-sp') {
+    const scaffoldPath = `${directory}/scaffold.mjs`
+    const scaffold = readFileSync(scaffoldPath, 'utf8')
+    const declaration = /export const DEFAULT_SPVE_SPECIFIER = 'npm:@spve\/core@\^0\.0\.\d+'/
+    assert.match(scaffold, declaration, 'Missing generator core dependency')
+    const updated = scaffold.replace(
+      declaration,
+      `export const DEFAULT_SPVE_SPECIFIER = 'npm:@spve/core@^${targetVersions['@spve/core']}'`,
+    )
+    if (updated !== scaffold) {
+      changes.set(scaffoldPath, updated)
+      dependencyChanged = true
+    }
+  }
+  if (name === 'migrate-sp') {
+    const dependency = `^${targetVersions['create-sp']}`
+    dependencyChanged = manifest.dependencies['create-sp'] !== dependency
+    manifest.dependencies['create-sp'] = dependency
+  }
 
   const response = await fetch(`https://registry.npmjs.org/${encodeURIComponent(name)}`, {
     signal: AbortSignal.timeout(30_000),
@@ -51,13 +73,45 @@ for (const { name, directory } of packages) {
     `:(exclude)${manifestPath}`,
   ])
   assert.ok(diff.status === 0 || diff.status === 1, `${name}: failed to compare published sources`)
-  if (diff.status === 0 && isDeepStrictEqual(baseline, manifest)) continue
+  if (diff.status === 0 && isDeepStrictEqual(baseline, manifest) && !dependencyChanged) {
+    targetVersions[name] = latest
+    continue
+  }
 
   const currentPatch = BigInt(manifest.version.split('.')[2])
   const publishedPatch = BigInt(latest.split('.')[2])
   const nextPatch = currentPatch > publishedPatch ? currentPatch : publishedPatch + 1n
   assert.ok(nextPatch <= BigInt(Number.MAX_SAFE_INTEGER), 'Patch version exceeds the semver limit')
-  releases.push({ name, directory, version: `0.0.${nextPatch}` })
+  const version = `0.0.${nextPatch}`
+  releases.push({ name, directory, version })
+  targetVersions[name] = version
+  manifest.version = version
+  const updated = `${JSON.stringify(manifest, null, 2)}\n`
+  if (updated !== readFileSync(manifestPath, 'utf8')) changes.set(manifestPath, updated)
+}
+
+if (releases.length) {
+  const workspacePath = 'pnpm-workspace.yaml'
+  const workspace = readFileSync(workspacePath, 'utf8')
+  assert.match(workspace, /^  create-sp: \^0\.0\.\d+$/m, 'Missing create-sp catalog entry')
+  const updatedWorkspace = workspace.replace(
+    /^  create-sp: \^0\.0\.\d+$/m,
+    `  create-sp: ^${targetVersions['create-sp']}`,
+  )
+  if (updatedWorkspace !== workspace) changes.set(workspacePath, updatedWorkspace)
+  const lockPath = 'pnpm-lock.yaml'
+  const lock = readFileSync(lockPath, 'utf8')
+  const importer = lock.match(/^  packages\/migrate:\n(?: {4}[^\n]*\n|\n)*/m)?.[0]
+  assert.ok(importer, 'Missing migration lock importer')
+  const dependency = /(      create-sp:\n        specifier: )[^\n]+(\n        version: )[^\n]+/
+  assert.match(importer, dependency, 'Missing migration dependency lock entry')
+  const updatedImporter = importer.replace(
+    dependency,
+    (_match, prefix, separator) =>
+      `${prefix}^${targetVersions['create-sp']}${separator}link:../create-sp`,
+  )
+  const updatedLock = lock.replace(importer, updatedImporter)
+  if (updatedLock !== lock) changes.set(lockPath, updatedLock)
 }
 
 if (process.env.EXPECTED_RELEASES) {
@@ -65,16 +119,14 @@ if (process.env.EXPECTED_RELEASES) {
 }
 
 if (process.argv.includes('--apply')) {
-  for (const release of releases) {
-    const manifestPath = `${release.directory}/package.json`
-    const manifest = JSON.parse(readFileSync(manifestPath, 'utf8'))
-    manifest.version = release.version
-    writeFileSync(manifestPath, `${JSON.stringify(manifest, null, 2)}\n`)
-  }
+  for (const [file, contents] of changes) writeFileSync(file, contents)
 }
 
 const label = releases.map(({ name, version }) => `${name}@${version}`).join(', ')
-appendFileSync(process.env.GITHUB_OUTPUT, `releases=${JSON.stringify(releases)}\nlabel=${label}\n`)
+appendFileSync(
+  process.env.GITHUB_OUTPUT,
+  `releases=${JSON.stringify(releases)}\nlabel=${label}\nfiles=${JSON.stringify([...changes.keys()])}\n`,
+)
 appendFileSync(
   process.env.GITHUB_STEP_SUMMARY,
   releases.length

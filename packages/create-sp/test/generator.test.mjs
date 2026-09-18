@@ -61,7 +61,7 @@ test('generates every bundled framework starter', () => {
       assert.equal(result.status, 0, result.stderr || result.stdout)
       assert.equal(
         JSON.parse(readFileSync(path.join(target, 'package.json'))).dependencies.spve,
-        'npm:@spve/core@^0.0.7',
+        `npm:@spve/core@^${JSON.parse(readFileSync(new URL('../../spve/package.json', import.meta.url))).version}`,
       )
       const packageJson = JSON.parse(readFileSync(path.join(target, 'package.json')))
       assert.equal(packageJson.scripts.postinstall, 'spve prepare')

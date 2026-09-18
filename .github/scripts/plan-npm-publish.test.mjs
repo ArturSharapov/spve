@@ -14,7 +14,7 @@ let root
 let registry
 
 function commit() {
-  execFileSync('git', ['add', 'packages'], { cwd: root })
+  execFileSync('git', ['add', 'packages', 'pnpm-lock.yaml', 'pnpm-workspace.yaml'], { cwd: root })
   execFileSync(
     'git',
     [
@@ -80,10 +80,19 @@ beforeEach(() => {
     mkdirSync(path.join(root, directory), { recursive: true })
     writeFileSync(
       path.join(root, directory, 'package.json'),
-      `${JSON.stringify({ name, version }, null, 2)}\n`,
+      `${JSON.stringify({ name, version, ...(name === 'migrate-sp' ? { dependencies: { 'create-sp': '^0.0.8' } } : {}) }, null, 2)}\n`,
     )
     writeFileSync(path.join(root, directory, 'index.mjs'), 'export const value = 1\n')
   }
+  writeFileSync(
+    path.join(root, 'packages/create-sp/scaffold.mjs'),
+    "export const DEFAULT_SPVE_SPECIFIER = 'npm:@spve/core@^0.0.7'\n",
+  )
+  writeFileSync(path.join(root, 'pnpm-workspace.yaml'), 'catalog:\n  create-sp: ^0.0.8\n')
+  writeFileSync(
+    path.join(root, 'pnpm-lock.yaml'),
+    'importers:\n  packages/migrate:\n    dependencies:\n      create-sp:\n        specifier: ^0.0.8\n        version: link:../create-sp\n',
+  )
   const gitHead = commit()
   registry = Object.fromEntries(
     packages.map(({ name, version }) => [name, { name, versions: { [version]: { gitHead } } }]),
@@ -100,13 +109,16 @@ test('no package changes produce no release or manifest mutation', () => {
   expect(execFileSync('git', ['diff', '--name-only'], { cwd: root, encoding: 'utf8' })).toBe('')
 })
 
-test('plans and bumps only the changed package', () => {
+test('bumps changed packages and synchronizes their dependents and lockfile', () => {
   writeFileSync(path.join(root, 'packages/create-sp/index.mjs'), 'export const value = 2\n')
   const plan = runPlan()
-  const releases = [{ name: 'create-sp', directory: 'packages/create-sp', version: '0.0.9' }]
+  const releases = [
+    { name: 'create-sp', directory: 'packages/create-sp', version: '0.0.9' },
+    { name: 'migrate-sp', directory: 'packages/migrate', version: '0.0.3' },
+  ]
   expect(plan.status, plan.stderr).toBe(0)
   expect(JSON.parse(plan.outputs.releases)).toEqual(releases)
-  expect(plan.outputs.label).toBe('create-sp@0.0.9')
+  expect(plan.outputs.label).toBe('create-sp@0.0.9, migrate-sp@0.0.3')
   expect(
     JSON.parse(readFileSync(path.join(root, 'packages/create-sp/package.json'), 'utf8')).version,
   ).toBe('0.0.8')
@@ -118,6 +130,16 @@ test('plans and bumps only the changed package', () => {
   expect(
     JSON.parse(readFileSync(path.join(root, 'packages/spve/package.json'), 'utf8')).version,
   ).toBe('0.0.7')
+  expect(
+    JSON.parse(readFileSync(path.join(root, 'packages/migrate/package.json'), 'utf8')).dependencies[
+      'create-sp'
+    ],
+  ).toBe('^0.0.9')
+  expect(readFileSync(path.join(root, 'pnpm-lock.yaml'), 'utf8')).toContain('specifier: ^0.0.9')
+  expect(readFileSync(path.join(root, 'pnpm-workspace.yaml'), 'utf8')).toContain(
+    'create-sp: ^0.0.9',
+  )
+  expect(JSON.parse(applied.outputs.files)).toContain('pnpm-lock.yaml')
 })
 
 test('ignores root changes and version-only package changes', () => {
@@ -131,6 +153,37 @@ test('ignores root changes and version-only package changes', () => {
   expect(result.outputs.releases).toBe('[]')
 })
 
+test('a core-only change propagates through generator defaults and migration dependencies', () => {
+  writeFileSync(path.join(root, 'packages/spve/index.mjs'), 'export const value = 2\n')
+  const result = runPlan({ apply: true })
+  expect(result.status, result.stderr).toBe(0)
+  expect(JSON.parse(result.outputs.releases).map(({ name }) => name)).toEqual([
+    '@spve/core',
+    'create-sp',
+    'migrate-sp',
+  ])
+  expect(readFileSync(path.join(root, 'packages/create-sp/scaffold.mjs'), 'utf8')).toContain(
+    'npm:@spve/core@^0.0.8',
+  )
+  expect(
+    JSON.parse(readFileSync(path.join(root, 'packages/migrate/package.json'), 'utf8')).dependencies[
+      'create-sp'
+    ],
+  ).toBe('^0.0.9')
+  expect(readFileSync(path.join(root, 'pnpm-lock.yaml'), 'utf8')).toContain('specifier: ^0.0.9')
+  expect(JSON.parse(result.outputs.files)).toContain('packages/create-sp/scaffold.mjs')
+})
+
+test('a migration-only change does not release its unchanged dependencies', () => {
+  writeFileSync(path.join(root, 'packages/migrate/index.mjs'), 'export const value = 2\n')
+  const result = runPlan({ apply: true })
+  expect(result.status, result.stderr).toBe(0)
+  expect(JSON.parse(result.outputs.releases)).toEqual([
+    { name: 'migrate-sp', directory: 'packages/migrate', version: '0.0.3' },
+  ])
+  expect(JSON.parse(result.outputs.files)).toEqual(['packages/migrate/package.json'])
+})
+
 test('detects package metadata edits and deleted files', () => {
   writeFileSync(
     path.join(root, 'packages/spve/package.json'),
@@ -141,6 +194,7 @@ test('detects package metadata edits and deleted files', () => {
   expect(result.status, result.stderr).toBe(0)
   expect(JSON.parse(result.outputs.releases).map(({ name }) => name)).toEqual([
     '@spve/core',
+    'create-sp',
     'migrate-sp',
   ])
 })

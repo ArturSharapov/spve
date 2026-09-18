@@ -217,7 +217,10 @@ test('migrates a legacy React SPFx project without changing its source', () => {
     assert.equal(packageJson.dependencies['@pnp/sp'], '^3.26.0')
     assert.equal(packageJson.dependencies.react, '^19.2.8')
     assert.equal(packageJson.dependencies['tiny-runtime'], '1.2.3')
-    assert.equal(packageJson.dependencies.spve, 'npm:@spve/core@^0.0.7')
+    assert.equal(
+      packageJson.dependencies.spve,
+      `npm:@spve/core@^${JSON.parse(readFileSync(new URL('../../spve/package.json', import.meta.url))).version}`,
+    )
     assert.equal(packageJson.devDependencies['@rushstack/heft'], undefined)
     assert.equal(packageJson.devDependencies['@microsoft/sp-http'], '1.22.0')
     assert.equal(packageJson.devDependencies['@microsoft/sp-webpart-base'], '1.22.0')

@@ -12,96 +12,68 @@ concurrency:
   cancel-in-progress: false
 
 jobs:
-  verify:
-    if: github.ref == 'refs/heads/main'
-    uses: ./.github/workflows/ci.yml
-
-  plan:
-    if: github.ref == 'refs/heads/main'
-    runs-on: ubuntu-latest
-    timeout-minutes: 5
-    outputs:
-      releases: ${{ steps.plan.outputs.releases }}
-      label: ${{ steps.plan.outputs.label }}
-    steps:
-      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262
-        with:
-          fetch-depth: 0
-          persist-credentials: false
-      - uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020
-        with:
-          node-version: '24'
-      - name: Detect changed packages and select patch versions
-        id: plan
-        run: node .github/scripts/plan-npm-publish.mjs
-
   publish:
-    name: Publish ${{ needs.plan.outputs.label }}
-    needs: [verify, plan]
-    if: needs.plan.outputs.releases != '[]'
+    if: github.ref == 'refs/heads/main'
     runs-on: ubuntu-latest
-    timeout-minutes: 15
+    timeout-minutes: 25
     environment: npm
     permissions:
       contents: write
       id-token: write
-    env:
-      EXPECTED_RELEASES: ${{ needs.plan.outputs.releases }}
     steps:
       - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262
         with:
+          ref: main
           fetch-depth: 0
           persist-credentials: false
-      - uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020
+      - uses: voidzero-dev/setup-vp@8a7496fd44e8a1b0a88a7459e36213b2fefc1d15
         with:
           node-version: '24'
-      - name: Revalidate and bump changed packages
+          cache: true
+          run-install: false
+      - name: Plan release and synchronize versions
+        id: plan
         run: node .github/scripts/plan-npm-publish.mjs --apply
-      - name: Commit version bumps to main
+      - name: Install the bumped workspace
+        if: steps.plan.outputs.releases != '[]'
+        run: vp install --frozen-lockfile
+      - name: Verify the bumped workspace
+        if: steps.plan.outputs.releases != '[]'
+        run: vp run ready
+      - name: Revalidate published versions
+        if: steps.plan.outputs.releases != '[]'
+        env:
+          EXPECTED_RELEASES: ${{ steps.plan.outputs.releases }}
+        run: node .github/scripts/plan-npm-publish.mjs
+      - name: Verify npm trusted publishing for every package
+        if: steps.plan.outputs.releases != '[]'
+        env:
+          RELEASES: ${{ steps.plan.outputs.releases }}
+        run: node .github/scripts/check-npm-publishing.mjs
+      - name: Commit the verified version changes
+        if: steps.plan.outputs.releases != '[]'
         id: commit
         env:
           GH_TOKEN: ${{ github.token }}
-        run: |
-          node --input-type=module <<'NODE'
-          import assert from 'node:assert/strict'
-          import { execFileSync } from 'node:child_process'
-          import { appendFileSync, readFileSync } from 'node:fs'
-          const releases = JSON.parse(process.env.EXPECTED_RELEASES)
-          const paths = releases.map(({ directory }) => `${directory}/package.json`)
-          const changed = execFileSync('git', ['diff', '--name-only', '--', ...paths], { encoding: 'utf8' }).trim()
-          const remote = execFileSync('git', ['ls-remote', 'origin', 'refs/heads/main'], { encoding: 'utf8' }).split('\t')[0]
-          assert.equal(remote, process.env.GITHUB_SHA, 'main advanced after this run started')
-          let commit = process.env.GITHUB_SHA
-          if (changed) {
-            const input = {
-              branch: { repositoryNameWithOwner: process.env.GITHUB_REPOSITORY, branchName: 'main' },
-              expectedHeadOid: process.env.GITHUB_SHA,
-              message: { headline: `chore: publish ${releases.map(({ name, version }) => `${name}@${version}`).join(', ')}` },
-              fileChanges: { additions: changed.split('\n').map((path) => ({ path, contents: readFileSync(path).toString('base64') })) },
-            }
-            const result = JSON.parse(execFileSync('gh', ['api', 'graphql', '--input', '-'], {
-              input: JSON.stringify({ query: 'mutation($input: CreateCommitOnBranchInput!) { createCommitOnBranch(input: $input) { commit { oid } } }', variables: { input } }),
-              encoding: 'utf8',
-            }))
-            assert.ok(!result.errors, JSON.stringify(result.errors))
-            commit = result.data.createCommitOnBranch.commit.oid
-          }
-          assert.match(commit, /^[a-f0-9]{40}$/)
-          appendFileSync(process.env.GITHUB_OUTPUT, `sha=${commit}\n`)
-          appendFileSync(process.env.GITHUB_STEP_SUMMARY, `\nVersion commit: ${commit}\n`)
-          NODE
+          RELEASES: ${{ steps.plan.outputs.releases }}
+          FILES: ${{ steps.plan.outputs.files }}
+        run: node .github/scripts/commit-npm-publish.mjs
       - name: Use version commit as the npm source revision
+        if: steps.plan.outputs.releases != '[]'
         env:
           VERSION_COMMIT: ${{ steps.commit.outputs.sha }}
         run: |
           git fetch origin "$VERSION_COMMIT"
           git reset --mixed "$VERSION_COMMIT"
       - name: Publish changed packages in dependency order
+        if: steps.plan.outputs.releases != '[]'
+        env:
+          RELEASES: ${{ steps.plan.outputs.releases }}
         run: |
           node --input-type=module <<'NODE'
           import { execFileSync } from 'node:child_process'
           import { appendFileSync } from 'node:fs'
-          for (const { name, directory, version } of JSON.parse(process.env.EXPECTED_RELEASES)) {
+          for (const { name, directory, version } of JSON.parse(process.env.RELEASES)) {
             execFileSync('npm', ['publish', '--access', 'public', '--provenance'], { cwd: directory, stdio: 'inherit' })
             appendFileSync(process.env.GITHUB_STEP_SUMMARY, `\nPublished **${name}@${version}** to npm.\n`)
           }
