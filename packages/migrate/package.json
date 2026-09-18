@@ -1,6 +1,6 @@
 {
   "name": "migrate-sp",
-  "version": "0.0.2",
+  "version": "0.0.3",
   "description": "Migrate legacy React SPFx projects to modern SPVE applications",
   "keywords": [
     "migration",
