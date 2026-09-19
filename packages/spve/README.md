@@ -93,6 +93,10 @@ Development mode reuses the trusted SPFx certificate for both Vite and Heft. SPV
 proxies Vite modules through the Heft origin so browsers only need to authorize one localhost
 origin.
 
+In `sp` development, generated asset URLs also use Heft. The standalone page stays on Vite;
+CORS allows it to fetch those assets through Heft. Images used for canvas export need ordinary
+cross-origin image loading, such as `image.crossOrigin = 'anonymous'` before setting `image.src`.
+
 ## Typed web-part properties
 
 Declare properties in the typed `spve.config.ts`:
