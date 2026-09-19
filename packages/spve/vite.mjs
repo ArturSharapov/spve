@@ -171,7 +171,16 @@ function spvePlugin() {
           dedupe: ['@azure/msal-browser', '@pnp/sp'],
         },
         server: {
-          cors: spMode ? { origin: sharePointOrigin } : undefined,
+          origin: spDevelopment
+            ? (config.server?.origin ?? `https://localhost:${settings.dev.spfxPort}`)
+            : undefined,
+          cors: spMode
+            ? {
+                origin: spDevelopment
+                  ? [sharePointOrigin, `https://localhost:${settings.dev.vitePort}`]
+                  : sharePointOrigin,
+              }
+            : undefined,
           headers: spMode ? { 'Access-Control-Allow-Private-Network': 'true' } : undefined,
           host: 'localhost',
           https,
