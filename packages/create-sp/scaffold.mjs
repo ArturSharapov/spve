@@ -4,7 +4,7 @@ import path from 'node:path'
 
 const templatesRoot = fileURLToPath(new URL('./templates', import.meta.url))
 
-export const DEFAULT_SPVE_SPECIFIER = 'npm:@spve/core@^0.0.8'
+export const DEFAULT_SPVE_SPECIFIER = 'npm:@spve/core@^0.0.9'
 
 function frameworkDependencies(template) {
   if (template === 'vue-ts') {
